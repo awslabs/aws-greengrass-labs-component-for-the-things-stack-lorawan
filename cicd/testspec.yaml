@@ -1,0 +1,43 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      # Install pre-requisite tools
+      - pip3 install -r robot/requirements.txt
+
+      # Log the versions of all tools
+      - aws --version
+      - python3 --version
+
+  build:
+    commands:
+      - ADMIN_PASSWORD=$(aws secretsmanager get-secret-value --secret-id $SECRET_NAME | jq -r '.SecretString' | 
+        jq -r '."admin-password"')
+      - DOMAIN_NAME=$(aws secretsmanager get-secret-value --secret-id $SECRET_NAME | jq -r '.SecretString' | 
+        jq -r '."config/stack/ttn-lw-stack-docker.yml"' | grep console-url | cut --delimiter='/' --fields=3)
+
+      # Robot Framework automated integration tests - prevent admin user password from being logged during login
+      - cd robot
+      - robot --pythonpath libs --variable DOMAIN_NAME:$DOMAIN_NAME --variable ADMIN_PASSWORD:$ADMIN_PASSWORD
+        --xunit results.xml --removekeywords NAME:Login suites
+
+  post_build:
+    commands:
+
+artifacts:
+  discard-paths: yes
+  files:
+    - robot/log.html
+    - robot/report.html
+    - robot/output.xml
+    - robot/results.xml
+
+reports:
+  IntegrationTestsReport:
+    files:
+      - results.xml
+    base-directory: 'robot'

@@ -1,0 +1,7 @@
+*.pem
+build
+__pycache__
+junit.xml
+.coverage
+htmlcov
+.vscode

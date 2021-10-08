@@ -1,0 +1,73 @@
+{
+  "RecipeFormatVersion": "2020-01-25",
+  "ComponentName": "aws.greengrass.labs.TheThingsStackLoRaWAN",
+  "ComponentVersion": "$COMPONENT_VERSION",
+  "ComponentDescription": "The Things Stack LoRaWAN",
+  "ComponentPublisher": "Amazon",
+  "ComponentConfiguration": {
+    "DefaultConfiguration": {
+      "secretArn": "$SECRET_ARN",
+      "accessControl": {
+        "aws.greengrass.SecretManager": {
+          "aws.greengrass.labs.TheThingsStackLoRaWAN:secrets:1": {
+            "policyDescription": "Allows access to The Things Stack configuration secret",
+            "operations": [
+              "aws.greengrass#GetSecretValue"
+            ],
+            "resources": [
+              "$SECRET_ARN"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "ComponentDependencies": {
+    "aws.greengrass.DockerApplicationManager": {
+      "VersionRequirement": "^2.0.0"
+    },
+    "aws.greengrass.SecretManager": {
+      "VersionRequirement": "^2.0.0",
+      "DependencyType": "HARD"
+    }  
+  },
+  "Manifests": [
+    {
+      "Platform": {
+        "os": "linux"
+      },
+      "Lifecycle": {
+        "Install": {
+          "RequiresPrivilege": true,
+          "script": "cp -R {artifacts:decompressedPath}/tts/* .\npip3 install awsiotsdk PyYAML\npython3 -u install.py {configuration:/secretArn}"
+        },
+        "Startup": {
+          "RequiresPrivilege": true,
+          "script": "python3 -u share_certs.py\ndocker-compose up -d stack"
+        },
+        "Shutdown": {
+          "RequiresPrivilege": true,
+          "script": "docker-compose down"
+        }
+      },
+      "Artifacts": [
+        {
+          "URI": "docker:$DOCKER_IMAGE_TTS"
+        },
+        {
+          "URI": "docker:$DOCKER_IMAGE_DB"
+        },
+        {
+          "URI": "docker:$DOCKER_IMAGE_REDIS"
+        },
+        {
+          "URI": "s3://$BUCKET_NAME/$COMPONENT_VERSION/tts.zip",
+          "Unarchive": "ZIP",
+          "Permission": {
+            "Read": "ALL"
+          }
+        }
+      ]      
+    }
+  ]
+}
