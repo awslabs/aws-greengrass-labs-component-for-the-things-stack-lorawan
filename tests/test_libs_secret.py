@@ -4,6 +4,7 @@
 """
 Unit tests for the libs.secret module
 """
+import os
 import pytest
 from moto import mock_secretsmanager
 from libs.secret import Secret
@@ -14,7 +15,11 @@ REGION ='us-east-1'
 @mock_secretsmanager
 @pytest.fixture(name="secret") # Magic to beat Pylint complaints about the fixture
 def fixture_secret():
-    """ Instantiates a Secret object"""
+    """ Instantiates a Secret object, using dummy credentials """
+    os.environ['AWS_ACCESS_KEY_ID'] = 'testing'
+    os.environ['AWS_SECRET_ACCESS_KEY'] = 'testing'
+    os.environ['AWS_SECURITY_TOKEN'] = 'testing'
+    os.environ['AWS_SESSION_TOKEN'] = 'testing'
     sec = Secret(REGION)
     return sec
 
