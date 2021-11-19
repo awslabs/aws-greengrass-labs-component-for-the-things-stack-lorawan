@@ -139,7 +139,7 @@ export class CicdStack extends cdk.Stack {
         }));
         deployProject.addToRolePolicy(new PolicyStatement({
             effect: Effect.ALLOW,
-            actions: ['greengrass:GetDeployment'],
+            actions: ['greengrass:GetDeployment','greengrass:ListDeployments'],
             resources: [`arn:aws:greengrass:${this.region}:${this.account}:deployments:*`]
         }));
         deployProject.addToRolePolicy(new PolicyStatement({
