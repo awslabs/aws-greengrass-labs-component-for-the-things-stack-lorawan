@@ -17,19 +17,8 @@ from libs.secret import Secret
 
 ACCOUNT = boto3.client('sts').get_caller_identity().get('Account')
 COMPONENT_NAME = 'aws.greengrass.labs.TheThingsStackLoRaWAN'
-COMPONENT_CLI = 'aws.greengrass.Cli'
 COMPONENT_DOCKER_APPLICATION_MANAGER = 'aws.greengrass.DockerApplicationManager'
 COMPONENT_SECRET_MANAGER = 'aws.greengrass.SecretManager'
-
-def get_core_version():
-    """ Gets the version of the Greengrass core (nucleus) """
-    try:
-        response = greengrassv2_client.get_core_device(coreDeviceThingName=args.coreDeviceThingName)
-    except Exception as e:
-        print('Failed to get core device\nException: {}'.format(e))
-        sys.exit(1)
-
-    return response['coreVersion']
 
 def get_newest_component_version(component_name):
     """ Gets the newest version of a component """
@@ -43,31 +32,68 @@ def get_newest_component_version(component_name):
 
     return response['componentVersions'][0]['componentVersion']
 
-def create_deployment(cli_ver, dam_ver, sm_ver):
-    """ Creates a deployment of The Things Stack LoRaWAN component to the given Greengrass core device """
+def get_deployment_components(name):
+    """ Gets the details of the existing deployment """
+    try:
+        response = greengrassv2_client.list_deployments()
+    except Exception as e:
+        print('Failed to list deployments\nException: {}'.format(e))
+        sys.exit(1)
+
+    components = []
+
+    for deployment in response['deployments']:
+        if deployment['deploymentName'] == name:
+
+            try:
+                response = greengrassv2_client.get_deployment(deploymentId=deployment['deploymentId'])
+                components = response['components']
+                break
+            except Exception as e:
+                print('Failed to get deployment\nException: {}'.format(e))
+                sys.exit(1)
+
+    return components
+
+def update_deployment_components(components):
+    """ Updates the existing components to the desired versions """
+
+    # If Docker Application manager is not in the deployment, add the latest version
+    if COMPONENT_DOCKER_APPLICATION_MANAGER not in components:
+        version = get_newest_component_version(COMPONENT_DOCKER_APPLICATION_MANAGER)
+        print('Adding {} {} to the deployment'.format(COMPONENT_DOCKER_APPLICATION_MANAGER, version))
+        components.update({COMPONENT_DOCKER_APPLICATION_MANAGER: {'componentVersion': version}})
+
+    # If Secret manager is not in the deployment, add the latest version
+    if COMPONENT_SECRET_MANAGER not in components:
+        version = get_newest_component_version(COMPONENT_SECRET_MANAGER)
+        print('Adding {} {} to the deployment'.format(COMPONENT_SECRET_MANAGER, version))
+    else:
+        # If it's already in the deployment, use the current version
+        version = components[COMPONENT_SECRET_MANAGER]['componentVersion']
+
+    # Ensure that Secret Manager is configured for the secret
+    components.update({COMPONENT_SECRET_MANAGER: {
+        'componentVersion': version,
+        'configurationUpdate': {'merge': '{"cloudSecrets":[{"arn":"' + secret_value['ARN'] + '"}]}'}}
+    })
+
+    # Add or update our component to the specified version
+    if COMPONENT_NAME not in components:
+        print('Adding {} {} to the deployment'.format(COMPONENT_NAME, args.version))
+    else:
+        print('Updating deployment with {} {}'.format(COMPONENT_NAME, args.version))
+    components.update({COMPONENT_NAME: {'componentVersion': args.version}})
+
+def create_deployment(name, components):
+    """ Creates a deployment of the component to the given Greengrass core device """
     thing_arn = 'arn:aws:iot:{}:{}:thing/{}'.format(args.region, ACCOUNT, args.coreDeviceThingName)
 
     try:
         response = greengrassv2_client.create_deployment(
             targetArn=thing_arn,
-            deploymentName='Deployment for {}'.format(args.coreDeviceThingName),
-            components={
-                COMPONENT_NAME: {
-                    'componentVersion': args.version
-                },
-                COMPONENT_CLI: {
-                    'componentVersion': cli_ver
-                },
-                COMPONENT_DOCKER_APPLICATION_MANAGER: {
-                    'componentVersion': dam_ver
-                },
-                COMPONENT_SECRET_MANAGER: {
-                    'componentVersion': sm_ver,
-                    'configurationUpdate': {
-                        'merge': '{"cloudSecrets":[{"arn":"' + secret_value['ARN'] + '"}]}'
-                    }
-                }
-            }
+            deploymentName=name,
+            components=components
         )
     except Exception as e:
         print('Failed to create deployment\nException: {}'.format(e))
@@ -80,7 +106,7 @@ def wait_for_deployment_to_finish(deploy_id):
     deployment_status = 'ACTIVE'
     snapshot = time.time()
 
-    while deployment_status == 'ACTIVE' and (time.time() - snapshot) < 120:
+    while deployment_status == 'ACTIVE' and (time.time() - snapshot) < 300:
         try:
             response = greengrassv2_client.get_deployment(deploymentId=deploy_id)
             deployment_status = response['deploymentStatus']
@@ -111,16 +137,14 @@ secret_value = secret.get()
 
 print('Deploying version {} to {}'.format(args.version, args.coreDeviceThingName))
 
-# We deploy a CLI version that matches the core version.
-# We deploy latest Docker Application Manager and latest Secret Manager.
-cli_version = get_core_version()
-dam_version = get_newest_component_version(COMPONENT_DOCKER_APPLICATION_MANAGER)
-sm_version = get_newest_component_version(COMPONENT_SECRET_MANAGER)
+deployment_name='Deployment for {}'.format(args.coreDeviceThingName)
 
-print('Deploying with:\n{} {}\n{} {}\n{} {}'.format(COMPONENT_CLI, cli_version,
-                                                    COMPONENT_DOCKER_APPLICATION_MANAGER, dam_version,
-                                                    COMPONENT_SECRET_MANAGER, sm_version))
+# Get the components of the existing deployment (if the deployment already exists)
+deployment_components = get_deployment_components(deployment_name)
 
-deployment_id = create_deployment(cli_version, dam_version, sm_version)
+# Update the components of the existing deployment (or create if the deployment doesn't already exist)
+update_deployment_components(deployment_components)
+
+deployment_id = create_deployment(deployment_name, deployment_components)
 print('Deployment {} successfully created. Waiting for completion ...'.format(deployment_id))
 wait_for_deployment_to_finish(deployment_id)
