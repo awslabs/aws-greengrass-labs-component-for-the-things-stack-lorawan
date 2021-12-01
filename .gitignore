@@ -1,5 +1,5 @@
 *.pem
-build
+greengrass-build
 __pycache__
 junit.xml
 .coverage

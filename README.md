@@ -23,6 +23,7 @@ The Things Stack is also offered as [an AWS Marketplace AMI](https://aws.amazon.
     * [AWS CLI](#aws-cli)
     * [cfssl](#cfssl)
     * [Python](#python)
+    * [GDK CLI](#gdk-cli)
     * [Bash](#bash)
 * [Getting Started](#getting-started)
   * [Quickstart](#quickstart)
@@ -65,16 +66,17 @@ The Things Stack offers [an API](https://www.thethingsindustries.com/docs/gettin
 | /cicd                         | CDK Typescript app for a CodePipeline CI/CD pipeline.                                                 |
 | /images                       | Images for README files.                                                                              |
 | /libs                         | Python libraries shared by Python scripts.                                                            |
-| /recipes                      | Greengrass V2 component recipe templates.                                                             |
 | /robot                        | Robot Framework integration tests.                                                                    |
-| /tests                        | Pytest unit tests
+| /tests                        | Pytest unit tests.
 | /tts-config                   | The Things Stack configuration files.                                                                 |
 | create_certs.sh               | Creates self-signed TLS certificates for a given domain name or IP address.                           |
-| create_component_version.py   | Creates a new version of The Things Stack LoRaWAN component in the Greengrass cloud service.          |
 | create_config_minimal.py      | Creates a minimal configuration needed to deploy the component for a given domain name or IP address. |
 | create_config_secret.py       | Creates or updates The Things Stack configuration secret in Secrets Manager.                          |
 | deploy_component_version.py   | Deploys a component version to the Greengrass core device target.                                     |
+| gdk_build.py                  | Custom build script for the Greengrass Development Kit (GDK) - Command Line Interface.                |
+| gdk-config.json               | Configuration for the Greengrass Development Kit (GDK) - Command Line Interface.                      |
 | quickstart.sh                 | Creates and deploys a component with default configuration for a given domain name or IP address.     |
+| recipe.json                   | Greengrass V2 component recipe template.                                                              |
 
 # Requirements and Prerequisites
 
@@ -106,7 +108,7 @@ This component requires both **python3** and **pip3** to be installed on the cor
 
 ### Core Device Role
 
-This component downloads artifacts from an S3 bucket named **greengrass-tts-lorawan-ACCOUNT-REGION**. Therefore your Greengrass core device role must allow the **s3:GetObject** permission for this bucket. For more information: https://docs.aws.amazon.com/greengrass/v2/developerguide/device-service-role.html#device-service-role-access-s3-bucket
+Assuming the bucket name in **gdk-config.json** is left unchanged, this component downloads artifacts from an S3 bucket named **greengrass-tts-lorawan-REGION-ACCOUNT**. Therefore your Greengrass core device role must allow the **s3:GetObject** permission for this bucket. For more information: https://docs.aws.amazon.com/greengrass/v2/developerguide/device-service-role.html#device-service-role-access-s3-bucket
 
 Additionally, this component downloads sensitive The Things Stack configuration from Secrets Manager. Therefore your Greengrass core device role must also allow the **secretsmanager:GetSecretValue** permission for the **greengrass-tts-lorawan-ID** secret. 
 
@@ -121,7 +123,7 @@ Policy template to add to your device role (substituting correct values for ACCO
       "Action": [
         "s3:GetObject"
       ],
-      "Resource": "arn:aws:s3:::greengrass-tts-lorawan-ACCOUNT-REGION/*"
+      "Resource": "arn:aws:s3:::greengrass-tts-lorawan-REGION-ACCOUNT/*"
     },
     {
       "Effect": "Allow",
@@ -170,6 +172,14 @@ pip3 install -r robot/requirements.txt
 
 Please consider to use a [virtual environment](https://docs.python.org/3/library/venv.html).
 
+### GDK CLI
+
+This component makes use of the [Greengrass Development Kit (GDK) - Command Line Interface (CLI)](https://github.com/aws-greengrass/aws-greengrass-gdk-cli). This can be installed as follows:
+
+```
+pip3 install git+https://github.com/aws-greengrass/aws-greengrass-gdk-cli.git
+```
+
 ### Bash
 
 The **quickstart.sh** and **create_certs.sh** scripts are Bash scripts. If using a Windows machine, you will need a Bash environment.
@@ -178,7 +188,7 @@ The **quickstart.sh** and **create_certs.sh** scripts are Bash scripts. If using
 
 Here we define two ways to get started: Quickstart or Slowstart.
 
-All scripts used should be compatible with Linux, Mac or Windows operating systems, provided a Bash environment is available.
+All scripts are compatible with Linux, Mac or Windows operating systems, provided a Bash environment is available.
 
 ## Quickstart
 
@@ -189,31 +199,31 @@ Before running the script, users must:
 1. Deploy Greengrass V2 to an x86-compatible Linux machine, virtual machine or EC2 instance. The default The Things Stack configuration settings will pull **amd64** images, hence the x86-compatibility requirement. 
 2. Initialize the Greengrass core device to satisfy the [the requirements to run Docker containers using Docker Compose and Docker Hub](https://docs.aws.amazon.com/greengrass/v2/developerguide/run-docker-container.html).
 3. Install **cfssl** on the developer machine.
+4. Set the AWS region in **gdk-config.json**.
 
 The Quickstart script will:
 
 1. Install required Python packages.
 2. Create self-signed certificates for a given domain name or IP address.
 3. Create a minimal The Things Stack configuration for the given domain name or IP address.
-4. Upload the configuration to a configuration secret in Secrets Manager.
-5. Create a new component version in Greengrass cloud services, with artifacts in an S3 bucket.
-6. Prompt you to add permissions for the configuration secret and artifacts bucket to the Greengrass core device role. 
-7. Deploy the new component version to the Greengrass core (creating The Things Stack admin user in the process).
-8. Run Robot Framework integration tests to confirm The Things Stack is running under Greengrass.
+4. Upload the secure configuration to a configuration secret in Secrets Manager.
+5. Use GDK to build the component.
+6. Use GDK to publish a new component version to Greengrass cloud services and upload artifacts to an S3 bucket.
+7. Prompt you to add permissions for the configuration secret and artifacts bucket to the Greengrass core device role. 
+8. Deploy the new component version to the Greengrass core (creating The Things Stack admin user in the process).
+9. Run Robot Framework integration tests to confirm The Things Stack is running under Greengrass.
 
-The script accepts 6 arguments:
+The script accepts 4 arguments:
 
 1. Domain name or IP address (this can be an EC2 default domain name).
-2. AWS region.
-3. The password of The Things Stack admin user that will be created.
-4. The email of The Things Stack admin user that will be created.
-5. Component version. (Semantic **major.minor.patch**.)
-6. Greengrass Core device name.
+2. The password of The Things Stack admin user that will be created.
+3. The email of The Things Stack admin user that will be created.
+4. Greengrass Core device name.
 
 Example execution:
 
 ```
-bash quickstart.sh example.com ap-southeast-1 mypassword user@example.com 1.0.0 GGTheThingsStackLoRaWAN
+bash quickstart.sh example.com mypassword user@example.com GGTheThingsStackLoRaWAN
 ```
 ## Slowstart
 
@@ -227,35 +237,39 @@ If not using Quickstart, you must perform the following steps:
 3. Configure certificates as per https://www.thethingsindustries.com/docs/getting-started/installation/certificates/.
 4. If BYO/generating custom TLS certificates (rather than using Lets Encrypt), then add them to the **/tts-config** directory.
 5. If using an Enterprise license file, add it to the **/tts-config** directory.
-6. Run **create_config_secret.py** to create the configuration secret in Secrets Manager.
-7. Run **create_component_version.py** to create a component version in Greengrass cloud service, and upload artifacts to S3.
-8. Add permissions for the configuration secret and artifacts bucket to the Greengrass core device role. 
-9. Run **deploy_component_version.py** to deploy the new component version to your Greengrass device.
+6. Set the AWS region in **gdk-config.json**.
+7. Run **create_config_secret.py** to create the configuration secret in Secrets Manager.
+8. Run **gdk component build** to build the component.
+9. Run **gdk component publish** to create a component version in Greengrass cloud service, and upload artifacts to S3.
+10. Add permissions for the configuration secret and artifacts bucket to the Greengrass core device role. 
+11. Run **deploy_component_version.py** to deploy the new component version to your Greengrass device.
 
-For iterative configuration changes, repeat steps 2, 6, 7 and 9.
+For iterative configuration changes, repeat steps 2, 7, 8, 9 and 11.
 
 
 ### Example Execution
 
-Example of steps 6, 7 and 9:
+Example of steps 7, 8, 9 and 11:
 
 ```
-python3 create_config_secret.py ap-southeast-1 mypassword user@example.com
-python3 create_component_version.py 1.0.0 ap-southeast-1
-python3 deploy_component_version.py 1.0.0 ap-southeast-1 MyCoreDeviceThingName
+python3 create_config_secret.py mypassword user@example.com
+gdk component build
+gdk component publish
+python3 deploy_component_version.py 1.0.0 MyCoreDeviceThingName
 ```
 
 This example:
 
-1. Operates in AWS region **ap-southeast-1**.
-2. Creates and deploys component version **1.0.0** to Greengrass core device **MyCoreDeviceThingName**.
-3. Creates an admin user for The Things Stack with password **mypassword** and email **user@example.com**.
+1. Creates a Secrets Manager secret in your account in the region specified in **gdk-config.json**.
+2. Sets the admin user for The Things Stack to have password **mypassword** and email **user@example.com**.
+3. Builds the component and publishes it to your account in the region specified in **gdk-config.json**. 
+4. Deploys the new component version to Greengrass core device **MyCoreDeviceThingName**.
 
 ### CI/CD Pipeline
 
 This repository offers a CodePipeline [CI/CD pipeline](cicd/README.md) as a CDK application. This can be optionally deployed to the same account as the Greengrass core.
 
-This CI/CD pipeline automates steps 7 and 9. Following deployment, it performs automated smoke tests to ensure that The Things Stack has started correctly. With the pipeline deployed, users can make iterative configuration changes, update the configuration secret using **create_config_secret.py**, and then trigger the CI/CD pipeline to handle the rest.
+This CI/CD pipeline automates steps 7, 8 and 10. Following deployment, it performs automated smoke tests to ensure that The Things Stack has started correctly. With the pipeline deployed, users can make iterative configuration changes, update the configuration secret using **create_config_secret.py**, and then trigger the CI/CD pipeline to handle the rest.
 
 ### Automated Testing
 
@@ -295,7 +309,7 @@ Per The Things Stack recommendations, production deployments should reference sp
 
 CockroachDB is not available for Arm architecture. You must use PostgreSQL instead.
 
-The Things Stack images tagged **latest** on Docker Hub are not available for Arm archiecture. Only formal releases are.
+The Things Stack images tagged **latest** on Docker Hub are not available for Arm architecture. Only formal releases are.
 
 ## Pub/Sub Integration
 

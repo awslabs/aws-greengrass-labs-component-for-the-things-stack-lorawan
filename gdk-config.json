@@ -1,0 +1,20 @@
+{
+    "component" :{
+      "aws.greengrass.labs.TheThingsStackLoRaWAN": {
+        "author": "Amazon",
+        "version": "NEXT_PATCH",
+        "build": {
+          "build_system": "custom",
+          "custom_build_command": [
+            "python3",
+            "gdk_build.py"
+          ]
+        },
+        "publish": {
+          "bucket": "greengrass-tts-lorawan",
+          "region": "ap-southeast-1"
+        }
+      }
+    },
+    "gdk_version": "1.0.0"
+}
