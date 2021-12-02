@@ -5,15 +5,17 @@
 Creates or updates The Things Stack configuration secret in Secrets Manager.
 This recursively bundles all files in the tts-config directory into the
 secret. If using BYO certificates, these should be placed into the tts-config
-directory prior to creating the secret.
+directory prior to creating the secret. The gdk-config.json file should be
+updated with the desired AWS region prior to running this script.
 
 Example execution:
-python3 create_config_secret.py ap-southeast-1 mypassword user@example.com
+python3 create_config_secret.py mypassword user@example.com
 """
 
 import argparse
 import glob
 from libs.secret import Secret
+from libs.gdk_config import GdkConfig
 
 DIRECTORY_CONFIG = 'tts-config/'
 
@@ -23,7 +25,6 @@ def escape(in_str):
 
 parser = argparse.ArgumentParser(description='Create (or update) a secret to '\
                                                 'hold The Things Stack configuration securely')
-parser.add_argument('region', help='AWS region (Example: us-east-1)')
 parser.add_argument('adminPassword', help='Password of the "admin" user of The Things Stack')
 parser.add_argument('adminEmail', help='Email address of the "admin" user of The Things Stack')
 args = parser.parse_args()
@@ -42,5 +43,10 @@ for filename in filenames:
 
 secret_string += '"}'
 
-secret = Secret(args.region)
-secret.put(secret_string)
+gdk_config = GdkConfig()
+
+secret = Secret(gdk_config.region())
+secret_response = secret.put(secret_string)
+
+print('\nBEFORE DEPLOYING COMPONENT:')
+print('Add secretsmanager:GetSecretValue for {} to the Greengrass device role'.format(secret_response['ARN']))

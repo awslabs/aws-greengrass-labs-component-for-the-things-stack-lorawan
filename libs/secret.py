@@ -32,9 +32,9 @@ class Secret():
         if self.exists():
             try:
                 print('Updating The Things Stack secret {}'.format(self.SECRET_NAME))
-                self.secretsmanager_client.update_secret(SecretId=self.SECRET_NAME,
-                                                         SecretString=secret_string,
-                                                         Description=self.SECRET_DESCRIPTION)
+                response = self.secretsmanager_client.update_secret(SecretId=self.SECRET_NAME,
+                                                                    SecretString=secret_string,
+                                                                    Description=self.SECRET_DESCRIPTION)
             except Exception as e:
                 print('Failed to update The Things Stack secret\nException: {}'.format(e))
                 raise e
@@ -42,13 +42,15 @@ class Secret():
         else:
             try:
                 print('Creating The Things Stack secret {}'.format(self.SECRET_NAME))
-                self.secretsmanager_client.create_secret(Name=self.SECRET_NAME,
-                                                         SecretString=secret_string,
-                                                         Description=self.SECRET_DESCRIPTION)
+                response = self.secretsmanager_client.create_secret(Name=self.SECRET_NAME,
+                                                                    SecretString=secret_string,
+                                                                    Description=self.SECRET_DESCRIPTION)
             except Exception as e:
                 print('Failed to create The Things Stack secret\nException: {}'.format(e))
                 raise e
             print('Successfully created The Things Stack secret')
+
+        return response
 
     def exists(self):
         """ Determines whether The Things Stack secret already exists in Secrets Manager """
