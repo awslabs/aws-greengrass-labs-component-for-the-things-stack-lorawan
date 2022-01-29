@@ -38,6 +38,19 @@ The Things Stack is also offered as [an AWS Marketplace AMI](https://aws.amazon.
   * [Production Deployments](#production-deployments)
   * [Image Architecture](#image-architecture)
   * [Pub/Sub Integration](#pubsub-integration)
+* [Operations](#operations)
+  * [Clean Uninstall](#clean-uninstall)
+  * [Data Backup](#data-backup)
+* [Troubleshooting](#troubleshooting)
+  * [Troubleshooting Tools](#troubleshooting-tools)
+    * [Core Device Log Files](#core-device-log-files)
+    * [Greengrass CLI](#greengrass-cli)
+    * [Docker Container Logs](#docker-container-logs)
+  * [Common Failures](#common-failures)
+    * [Wrong Docker Image Architecture](#wrong-docker-image-architecture)
+    * [Redis Keeps Restarting](#redis-keeps-restarting)
+    * [Configuration Changes Not Deployed](#configuration-changes-not-deployed)
+    * [Database Access Fails](#database-access-fails)
 * [Development](#development)
   * [Static Analysis](#static-analysis)
   * [Unit Tests](#unit-tests)
@@ -196,7 +209,7 @@ The **quickstart.sh** bash script is supplied to help you get going fast. For ex
 
 Before running the script, users must:
 
-1. Deploy Greengrass V2 to an x86-compatible Linux machine, virtual machine or EC2 instance. The default The Things Stack configuration settings will pull **amd64** images, hence the x86-compatibility requirement. 
+1. Deploy Greengrass V2 to a Linux machine, virtual machine or EC2 instance.
 2. Initialize the Greengrass core device to satisfy the [the requirements to run Docker containers using Docker Compose and Docker Hub](https://docs.aws.amazon.com/greengrass/v2/developerguide/run-docker-container.html).
 3. Install **cfssl** on the developer machine.
 4. Set the AWS region in **gdk-config.json**.
@@ -269,7 +282,7 @@ This example:
 
 This repository offers a CodePipeline [CI/CD pipeline](cicd/README.md) as a CDK application. This can be optionally deployed to the same account as the Greengrass core.
 
-This CI/CD pipeline automates steps 7, 8 and 10. Following deployment, it performs automated smoke tests to ensure that The Things Stack has started correctly. With the pipeline deployed, users can make iterative configuration changes, update the configuration secret using **create_config_secret.py**, and then trigger the CI/CD pipeline to handle the rest.
+This CI/CD pipeline automates steps 8,9 and 11. Following deployment, it performs automated smoke tests to ensure that The Things Stack has started correctly. With the pipeline deployed, users can make iterative configuration changes, update the configuration secret using **create_config_secret.py**, and then trigger the CI/CD pipeline to handle the rest.
 
 ### Automated Testing
 
@@ -285,11 +298,12 @@ The **tts-config/docker-compose.yaml** and **tts-config/config/stack/ttn-lw-stac
 Things Stack Enterprise example configuration files, with the following divergence:
 
 - All Enterprise configuration elements are commented out so that it defaults to Open Source edition.
-- Acme Let's Encrypt TLS certificates are disabled and custom TLS certificates are enabled.
+- Acme Let's Encrypt TLS certificates are disabled and custom TLS certificates are enabled. This allows deployment to a server that only has an IP address, a local network DNS name or an EC2 default domain name.
 - All non-TLS ports and endpoints are disabled.
+- Postgres is selected as the database, instead of Cockroach, so that this component can be easily deployed to many different architectures. Cockroach only supports **amd64** architecture.
+- Versioned image tags are used instead of just **latest** tags. These versioned tags are the most recently tested combination. The **latest** tags do not always support as many architectures as formal releases do.
 
-This is to facilitate minimal effort in deploying this component to a server that only has an IP address, a local network DNS name
-or an EC2 default domain name. 
+These default settings likely facilitate minimal effort in deploying this component to your Greengrass core device.
 
 ## Enterprise versus Open Source
 
@@ -309,7 +323,7 @@ Per The Things Stack recommendations, production deployments should reference sp
 
 CockroachDB is not available for Arm architecture. You must use PostgreSQL instead.
 
-The Things Stack images tagged **latest** on Docker Hub are not available for Arm architecture. Only formal releases are.
+The Things Stack images tagged **latest** on Docker Hub are not available for all architectures. Only formal releases are.
 
 ## Pub/Sub Integration
 
@@ -318,6 +332,108 @@ The [Pub/Sub integration](https://www.thethingsindustries.com/docs/integrations/
 ```
 mqtts://ENDPOINTID-ats.iot.ap-REGION.amazonaws.com:8883
 ```
+
+# Operations
+
+## Clean Uninstall
+
+Removing this component from your deployment will not remove all vestiges from your Greengrass core device. Additional steps:
+
+- Remove any Docker images that have persisted.
+- Remove the working directory: **/greengrass/v2/work/aws.greengrass.labs.TheThingsStackLoRaWAN**. This also deletes the databases.
+
+## Data Backup
+
+If this component is deployed with default settings, the databases are located in **/greengrass/v2/work/aws.greengrass.labs.TheThingsStackLoRaWAN/.env/data**.
+
+# Troubleshooting
+
+Tips for investigating failed deployments, or deployments that succeed but the Things Stack is still not running.
+
+## Troubleshooting Tools
+
+### Core Device Log Files
+
+Detailed component logs can be found on the Core Device in **/greengrass/v2/logs/aws.greengrass.labs.TheThingsStackLoRaWAN.log**.
+
+The Greengrass Core log file can be found at **/greengrass/v2/logs/greengrass.log**.
+
+For more information please refer to the Greengrass V2 documentation: https://docs.aws.amazon.com/greengrass/v2/developerguide/monitor-logs.html
+
+### Greengrass CLI
+
+Consider to install the [Greengrass Command Line Interface component](https://docs.aws.amazon.com/greengrass/v2/developerguide/gg-cli.html) to obtain greater visibility into the state of your core device.
+
+### Docker Container Logs
+
+The logs within the Docker containers can be inspected as follows:
+
+```
+docker logs awsgreengrasslabsthethingsstacklorawan_redis_1
+docker logs awsgreengrasslabsthethingsstacklorawan_postgres_1
+docker logs awsgreengrasslabsthethingsstacklorawan_cockroach_1
+docker logs awsgreengrasslabsthethingsstacklorawan_stack
+```
+
+## Common Failures
+
+The Things Stack can fail to start for a variety of reasons.
+
+### Wrong Docker Image Architecture
+
+If a Docker image of the wrong architecture is deployed, it will fail to start. A message similar to the following indicates that the wrong architecture is being used:
+
+```
+standard_init_linux.go:228: exec user process caused: exec format error
+```
+
+In the case of The Things Stack container, this message will appear in **/greengrass/v2/logs/aws.greengrass.labs.TheThingsStackLoRaWAN.log**. For the database containers, this message will appear in the Docker container logs. Other consequential errors will appear in **/greengrass/v2/logs/aws.greengrass.labs.TheThingsStackLoRaWAN.log**. For example, if Cockroach (which only supports **amd64** architecture) is deployed to an Arm system, errors similar to the following will be observed:
+
+```
+aws.greengrass.labs.TheThingsStackLoRaWAN: stdout. ERROR: for awsgreengrasslabsthethingsstacklorawan_cockroach_1  Cannot start service cockroach
+aws.greengrass.labs.TheThingsStackLoRaWAN: stdout. ERROR: for cockroach  Cannot start service cockroach
+aws.greengrass.labs.TheThingsStackLoRaWAN: stdout. dial tcp 172.21.0.4:26257: connect: no route to host
+```
+
+To resolve incorrect architecture, please check the available architectures for the image tag. Image tags on DockerHub do not always support all architectures. Update **docker-compose.yml** and update the configuration secret.
+
+### Redis Keeps Restarting
+
+This will prevent The Things Stack from starting correctly. Please check the Redis Docker container logs for the following error:
+
+```
+redis-server: monotonic.c:149: monotonicInit_posix: Assertion `rc == 0' failed.
+```
+
+[Redis 6.2 included a change that means it requires libseccomp 2.4.2 or newer](https://github.com/docker-library/redis/issues/272). On some systems, such as Raspbian, **libseccomp** may not meet this requirement. To check the version under Raspbian, Ubuntu or Debian:
+
+```
+dpkg -l | grep libseccomp
+```
+
+The issue can be resolved by using Redis 6.0 or by upgrading **libseccomp**. 
+
+### Configuration Changes Not Deployed
+
+The Greengrass Secret Manager component needs to fetch the configuration secret from the cloud, for any changes to be seen by The Things Stack LoRaWAN component. The Secret Manager will not necessarily fetch the secret even when a new version of the component is deployed. Restart or reboot the core device to force a fetch.
+
+The deployed configuration can be found at **/greengrass/v2/work/aws.greengrass.labs.TheThingsStackLoRaWAN/docker-compose.yml** and **/greengrass/v2/work/aws.greengrass.labs.TheThingsStackLoRaWAN/config/stack/ttn-lw-stack-docker.yml**.
+
+### Database Access Fails
+
+The following error may appear in **/greengrass/v2/logs/aws.greengrass.labs.TheThingsStackLoRaWAN.log** when The Things Stack starts up:
+
+```
+pq: could not open file "global/pg_filenode.map": Permission denied. 
+```
+
+Or alternatively:
+
+```
+pq: database "ttn_lorawan" does not exist
+```
+
+These messages should only appear when trying to recover from other errors. Ensure the latest configuration secret is deployed by restarting the core device. Should the problem persist, consider a [Clean Uninstall](#clean-uninstall).
 
 # Development
 

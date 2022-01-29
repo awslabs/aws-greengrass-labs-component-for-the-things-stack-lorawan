@@ -2,33 +2,33 @@ version: '3.3'
 services:
 
   # If using CockroachDB:
-  cockroach:
+  # cockroach:
     # In production, replace 'latest' with tag from https://hub.docker.com/r/cockroachdb/cockroach/tags
-    image: cockroachdb/cockroach:latest
-    command: start-single-node --http-port 26256 --insecure
-    restart: unless-stopped
-    volumes:
-      - ${DEV_DATA_DIR:-.env/data}/cockroach:/cockroach/cockroach-data
-    ports:
-      - "127.0.0.1:26257:26257" # Cockroach
-      - "127.0.0.1:26256:26256" # WebUI
+  #   image: cockroachdb/cockroach:latest
+  #   command: start-single-node --http-port 26256 --insecure
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ${DEV_DATA_DIR:-.env/data}/cockroach:/cockroach/cockroach-data
+  #   ports:
+  #     - "127.0.0.1:26257:26257" # Cockroach
+  #     - "127.0.0.1:26256:26256" # WebUI
 
   # If using PostgreSQL:
-  # postgres:
-  #   image: postgres
-  #   restart: unless-stopped
-  #   environment:
-  #     - POSTGRES_PASSWORD=root
-  #     - POSTGRES_USER=root
-  #     - POSTGRES_DB=ttn_lorawan
-  #   volumes:
-  #     - ${DEV_DATA_DIR:-.env/data}/postgres:/var/lib/postgresql/data
-  #   ports:
-  #     - "127.0.0.1:5432:5432"
+  postgres:
+    image: postgres:14.1
+    restart: unless-stopped
+    environment:
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_USER=root
+      - POSTGRES_DB=ttn_lorawan
+    volumes:
+      - ${DEV_DATA_DIR:-.env/data}/postgres:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
 
   redis:
     # In production, replace 'latest' with tag from https://hub.docker.com/_/redis?tab=tags
-    image: redis:latest
+    image: redis:6.0
     command: redis-server --appendonly yes
     restart: unless-stopped
     volumes:
@@ -41,16 +41,16 @@ services:
     # Use TTI for Enterprise and TTN for Open Source
     # image: thethingsindustries/lorawan-stack:latest
     # entrypoint: tti-lw-stack -c /config/ttn-lw-stack-docker.yml
-    image: thethingsnetwork/lorawan-stack:latest
+    image: thethingsnetwork/lorawan-stack:3.17.1
     entrypoint: ttn-lw-stack -c /config/ttn-lw-stack-docker.yml
     command: start
     restart: unless-stopped
     depends_on:
       - redis
       # If using CockroachDB:
-      - cockroach
+      # - cockroach
       # If using PostgreSQL:
-      # - postgres
+      - postgres
     volumes:
       - ./blob:/srv/ttn-lorawan/public/blob
       - ./config/stack:/config:ro
@@ -60,9 +60,9 @@ services:
       TTN_LW_BLOB_LOCAL_DIRECTORY: /srv/ttn-lorawan/public/blob
       TTN_LW_REDIS_ADDRESS: redis:6379
       # If using CockroachDB:
-      TTN_LW_IS_DATABASE_URI: postgres://root@cockroach:26257/ttn_lorawan?sslmode=disable
-      # # If using PostgreSQL:
-      # TTN_LW_IS_DATABASE_URI: postgres://root:root@postgres:5432/ttn_lorawan?sslmode=disable
+      # TTN_LW_IS_DATABASE_URI: postgres://root@cockroach:26257/ttn_lorawan?sslmode=disable
+      # If using PostgreSQL:
+      TTN_LW_IS_DATABASE_URI: postgres://root:root@postgres:5432/ttn_lorawan?sslmode=disable
 
     ports:
       # If deploying on a public server:
