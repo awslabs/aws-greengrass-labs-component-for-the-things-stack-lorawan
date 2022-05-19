@@ -1,8 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { expect as expectCDK, haveResource, countResources } from '@aws-cdk/assert';
-import * as cdk from '@aws-cdk/core';
+import * as cdk from 'aws-cdk-lib';
+import { Template } from 'aws-cdk-lib/assertions';
 import * as Cicd from '../lib/cicd-stack';
 
 test('Good Stack', () => {
@@ -15,15 +15,16 @@ test('Good Stack', () => {
     });
 
     const stack = new Cicd.CicdStack(app, 'MyTestStack');
+    const template = Template.fromStack(stack)
 
-    expectCDK(stack).to(haveResource('AWS::CodePipeline::Pipeline', { 'Name': 'gg-ttsl-cicd-pipeline' }));
-    expectCDK(stack).to(haveResource('AWS::CodeBuild::Project', { 'Name': 'gg-ttsl-cicd-build' }));
-    expectCDK(stack).to(haveResource('AWS::CodeBuild::Project', { 'Name': 'gg-ttsl-cicd-deploy' }));
-    expectCDK(stack).to(haveResource('AWS::CodeBuild::Project', { 'Name': 'gg-ttsl-cicd-test' }));
-    expectCDK(stack).to(countResources('AWS::S3::Bucket', 1));
-    expectCDK(stack).to(countResources('AWS::CodeBuild::ReportGroup', 2));
-    expectCDK(stack).to(haveResource('AWS::SNS::Topic', { 'TopicName': 'gg-ttsl-cicd-notification' }));
-    expectCDK(stack).to(countResources('AWS::Events::Rule', 2));
+    template.hasResourceProperties('AWS::CodePipeline::Pipeline', { Name: 'gg-ttsl-cicd-pipeline' });
+    template.hasResourceProperties('AWS::CodeBuild::Project', { Name: 'gg-ttsl-cicd-build' });
+    template.hasResourceProperties('AWS::CodeBuild::Project', { Name: 'gg-ttsl-cicd-deploy' });
+    template.hasResourceProperties('AWS::CodeBuild::Project', { Name: 'gg-ttsl-cicd-test' });
+    template.resourceCountIs('AWS::S3::Bucket', 1);
+    template.resourceCountIs('AWS::CodeBuild::ReportGroup', 2);
+    template.hasResourceProperties('AWS::SNS::Topic', { TopicName: 'gg-ttsl-cicd-notification' });
+    template.resourceCountIs('AWS::Events::Rule', 2);
 });
 
 test('Missing Context Variables', () => {
