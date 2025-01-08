@@ -28,11 +28,22 @@ Manifests:
       RequiresPrivilege: true
       Script: |-
         cp -R {artifacts:decompressedPath}/tts/* .
+        echo Creating virtual environment
+        python3 -m venv venv
+        echo Activating virtual environment
+        . venv/bin/activate
+        echo Upgrading pip
+        pip install pip --upgrade
+        echo Installing package requirements
         pip3 install awsiotsdk PyYAML
+        echo Installing the component artifacts
         python3 -u install.py {configuration:/secretArn}
     Startup:
       RequiresPrivilege: true
       Script: |-
+        echo Activating virtual environment
+        . venv/bin/activate
+        echo Running the component
         python3 -u share_certs.py
         docker-compose up -d stack
     Shutdown:
