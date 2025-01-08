@@ -18,13 +18,23 @@ The pipeline consists of three stages: build, deploy and test. The build stage c
 
 ![cicd-pipeline-architecture](images/cicd-pipeline-architecture.png)
 
-Source code is obtained from CodeCommit in the same region as what the pipeline is deployed. Therefore it's necessary to clone the code to a CodeCommit repository. Alternatively you can modify the pipeline to obtain the source code from a different repository.
+## Source Code
 
-The pipeline automatically increments the component version number by assigning the build stage CodeBuild build number as the patch revision of the **major.minor.patch** version. Major and minor revision updates are achieved by changing **buildspec.yml**.
+The pipeline consumes a repository hosted in GitHub, GitHub Enterprise Server or Bitbucket. You need to create an [AWS CodeStar connection](https://docs.aws.amazon.com/dtconsole/latest/userguide/connections.html).
 
-The test stage does not modify The Things Stack databases and therefore the pipeline is generally appropriate for DEV, TEST and PROD environments. Testing is performed with the help of [Robot Framework](https://robotframework.org/), with logs stored as build artifacts and [JUnit compatible reports in CodeBuild](https://docs.aws.amazon.com/codebuild/latest/userguide/test-reporting.html). 
+As this project is hosted in GitHub, the most common scenario is that you will fork the repository in GitHub and [create a CodeStar connection to the forked repository in GitHub](https://docs.aws.amazon.com/dtconsole/latest/userguide/connections-create-github.html). The CodeStar connection ID can then be used in the [CDK context](#context-variables).
 
-The pipeline publishes success or failure notifications to an SNS topic.
+## Versioning
+
+The pipeline uses the [Greengrass Development Kit (GDK)](https://docs.aws.amazon.com/greengrass/v2/developerguide/greengrass-development-kit-cli.html) to automatically increment the component version number.
+
+## Notifications
+
+The pipeline publishes success or failure notifications to an SNS topic named **gg-ttsl-cicd-notification**.
+
+## Test Reports
+
+Unit test reports are stored as build artifacts and [JUnit compatible reports in CodeBuild](https://docs.aws.amazon.com/codebuild/latest/userguide/test-reporting.html). 
 
 # How to
 
@@ -49,25 +59,30 @@ npm run test
 
 ## Context variables
 
-Synthesis and deployment of the stack requires the following context variables:
+The CDK concept of [context](https://docs.aws.amazon.com/cdk/v2/guide/context.html) is used to configure the CI/CD pipeline.
 
-| Name                  | Description                                                                             |
-| --------------------- | --------------------------------------------------------------------------------------- |
-| RepositoryName        | The name of the CodeCommit repository containing the component's source code.           |
-| BranchName            | The name of the branch to use within the CodeCommit repository.                         |
-| GreengrassCoreName    | The name of the Greengrass Core device that the component shall be deployed to.         |
+Synthesis and deployment of the stack requires the following context variables:
+| Name               | Description                                                                                         | Default |
+| ------------------ | --------------------------------------------------------------------------------------------------- | ------- |
+| ConnectionId       | The CodeStar connection ID of the repo hosted in GitHub, BitBucket and GitHub Enterprise Server.    | None    |
+| OwnerName          | The name of the owner of the repo hosted in GitHub, BitBucket and GitHub Enterprise Server.         | None    |
+| RepositoryName     | The name of the repository containing the source code.                                              | aws-greengrass-labs-component-for-the-things-stack-lorawan |
+| BranchName         | The name of the branch to use in the repository.                                                    | main    |
+| GreengrassCoreName | The name of the Greengrass Core device that the component shall be deployed to.                     | None    |
+
+Default context values are defined in [cdk.json](cdk.json). Variables without a default value must be supplied in the command line of every synthesis or deployment, or added to the default context in your cloned or forked repository.
 
 ## Synthesize a CloudFormation template 
 
 Example synthesis:
 
 ```
-cdk synth -c RepositoryName=aws-greengrass-labs-component-for-the-things-stack-lorawan -c BranchName=main -c GreengrassCoreName=raspberrypi4-ggv2
+cdk synth -c ConnectionId=feedface-3333-bead-4444-0123456789ab -c OwnerName=MyOwnerName -c RepositoryName=aws-greengrass-labs-component-for-the-things-stack-lorawan -c BranchName=main -c GreengrassCoreName=raspberrypi4-ggv2
 ```
 ## Deploy the pipeline
 
 Example deployment:
 
 ```
-cdk deploy -c RepositoryName=aws-greengrass-labs-component-for-the-things-stack-lorawan -c BranchName=main -c GreengrassCoreName=raspberrypi4-ggv2
+cdk deploy -c ConnectionId=feedface-3333-bead-4444-0123456789ab -c OwnerName=MyOwnerName -c RepositoryName=aws-greengrass-labs-component-for-the-things-stack-lorawan -c BranchName=main -c GreengrassCoreName=raspberrypi4-ggv2
 ```
