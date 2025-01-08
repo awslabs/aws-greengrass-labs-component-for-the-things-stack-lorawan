@@ -5,3 +5,4 @@ junit.xml
 .coverage
 htmlcov
 .vscode
+.venv
