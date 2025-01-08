@@ -26,8 +26,8 @@ from libs.gdk_config import GdkConfig
 
 DIRECTORY_ARTIFACTS = 'artifacts/'
 DIRECTORY_BUILD = 'greengrass-build/artifacts/'
-FILE_RECIPE_TEMPLATE = 'recipe.json'
-FILE_RECIPE = 'greengrass-build/recipes/recipe.json'
+FILE_RECIPE_TEMPLATE = 'recipe.yaml'
+FILE_RECIPE = 'greengrass-build/recipes/recipe.yaml'
 FILE_ZIP_BASE = 'tts'
 FILE_ZIP_EXT = 'zip'
 FILE_DOCKER_COMPOSE = 'docker-compose.yml'
@@ -44,6 +44,10 @@ def create_recipe():
     with open(FILE_RECIPE_TEMPLATE, encoding="utf-8") as recipe_template_file:
         recipe_str = recipe_template_file.read()
 
+    recipe_str = recipe_str.replace('COMPONENT_NAME', gdk_config.name())
+    if gdk_config.version() != 'NEXT_PATCH':
+        recipe_str = recipe_str.replace('COMPONENT_VERSION', gdk_config.version())
+
     recipe_str = recipe_str.replace('$SECRET_ARN', secret_value['ARN'])
     recipe_str = recipe_str.replace('$DOCKER_IMAGE_TTS', docker_compose_yaml['services']['stack']['image'])
 
@@ -59,14 +63,14 @@ def create_recipe():
     else:
         print('Redis is not included in {}'.format(FILE_DOCKER_COMPOSE))
 
-    recipe_json = json.loads(recipe_str)
+    recipe_yaml = yaml.safe_load(recipe_str)
 
-    for index, artifact in reversed(list(enumerate(recipe_json['Manifests'][0]['Artifacts']))):
-        if '$DOCKER_IMAGE_' in artifact['URI']:
-            print('Excluding template artifact {}'.format(str(recipe_json['Manifests'][0]['Artifacts'][index])))
-            del recipe_json['Manifests'][0]['Artifacts'][index]
+    for index, artifact in reversed(list(enumerate(recipe_yaml['Manifests'][0]['Artifacts']))):
+        if '$DOCKER_IMAGE_' in artifact['Uri']:
+            print('Excluding template artifact {}'.format(str(recipe_yaml['Manifests'][0]['Artifacts'][index])))
+            del recipe_yaml['Manifests'][0]['Artifacts'][index]
 
-    recipe_str = json.dumps(recipe_json, indent=2)
+    recipe_str = yaml.dump(recipe_yaml, indent=2, sort_keys=False)
 
     with open(FILE_RECIPE, 'w', encoding="utf-8") as recipe_file:
         recipe_file.write(recipe_str)
