@@ -4,8 +4,8 @@
 """
 Unit tests for the gdk_build.py script
 """
-import json
 import runpy
+import yaml
 
 NAME = 'FooBar'
 VERSION = 'rubbish'
@@ -13,8 +13,8 @@ REGION = 'neverland'
 
 DIRECTORY_ARTIFACTS = 'artifacts/'
 DIRECTORY_BUILD = 'greengrass-build/artifacts/'
-FILE_RECIPE_TEMPLATE = 'recipe.json'
-FILE_RECIPE = 'greengrass-build/recipes/recipe.json'
+FILE_RECIPE_TEMPLATE = 'recipe.yaml'
+FILE_RECIPE = 'greengrass-build/recipes/recipe.yaml'
 FILE_DOCKER_COMPOSE = 'docker-compose.yml'
 FILE_ZIP_BASE = 'tts'
 FILE_ZIP_EXT = 'zip'
@@ -32,8 +32,10 @@ OMIT = 'omit'
 def recipe(secret_arn, image_tts, image_db, image_redis):
     """ Create a recipe string fragment """
     recipe_str =\
-    """
+    f"""
     {{
+    "ComponentName": "{NAME}",
+    "ComponentVersion": "{VERSION}",
     "ComponentConfiguration": {{
         "DefaultConfiguration": {{
         "secretArn": "{secret_arn}"
@@ -43,28 +45,28 @@ def recipe(secret_arn, image_tts, image_db, image_redis):
         {{
         "Artifacts": [
             {{
-            "URI": "docker:{image_tts}"
+            "Uri": "docker:{image_tts}"
             }},
             {{
-            "URI": "docker:{image_db}"
+            "Uri": "docker:{image_db}"
             }},
             {{
-            "URI": "docker:{image_redis}"
+            "Uri": "docker:{image_redis}"
             }}
         ]
         }}
     ]
     }}
-    """.format(secret_arn=secret_arn, image_tts=image_tts, image_db=image_db, image_redis=image_redis)
+    """
 
-    recipe_json = json.loads(recipe_str)
+    recipe_json = yaml.safe_load(recipe_str)
 
     if image_redis is OMIT:
         del recipe_json['Manifests'][0]['Artifacts'][2]
     if image_db is OMIT:
         del recipe_json['Manifests'][0]['Artifacts'][1]
 
-    recipe_str = json.dumps(recipe_json, indent=2)
+    recipe_str = yaml.dump(recipe_json, indent=2, sort_keys=False)
 
     return recipe_str
 
@@ -88,16 +90,15 @@ def docker_compose(database, database_image, redis_image):
 
 
 def check_gdk_build(mocker, db_name, db_image, redis_image=IMAGE_REDIS):
-# pylint: disable-msg=too-many-locals
     """ Confirm that the GDK build correctly assembles the recipe and the archive """
-    gdk_config_init = mocker.patch('libs.gdk_config.GdkConfig.__init__', return_value=None)
-    gdk_config_name = mocker.patch('libs.gdk_config.GdkConfig.name', return_value=NAME)
-    gdk_config_version = mocker.patch('libs.gdk_config.GdkConfig.version', return_value=VERSION)
-    gdk_config_region = mocker.patch('libs.gdk_config.GdkConfig.region', return_value=REGION)
+    gdk_config_class = mocker.patch('libs.gdk_config.GdkConfig')
+    gdk_config = gdk_config_class.return_value
+    gdk_config.name.return_value = NAME
+    gdk_config.version.return_value = VERSION
+    secret_class = mocker.patch('libs.secret.Secret')
+    secret = secret_class.return_value
     secret_string = '{"' + FILE_DOCKER_COMPOSE + '":"' + docker_compose(db_name, db_image, redis_image) + '"}'
-    secret_value = {'SecretString':secret_string, 'ARN': SECRET_ARN}
-    secret_init = mocker.patch('libs.secret.Secret.__init__', return_value=None)
-    secret_get = mocker.patch('libs.secret.Secret.get', return_value=secret_value)
+    secret.get.return_value = {'SecretString':secret_string, 'ARN': SECRET_ARN}
     recipe_template_str = recipe('$SECRET_ARN', '$DOCKER_IMAGE_TTS', '$DOCKER_IMAGE_DB', '$DOCKER_IMAGE_REDIS')
     file = mocker.patch('builtins.open', mocker.mock_open(read_data=recipe_template_str))
     make_archive = mocker.patch('shutil.make_archive')
@@ -109,12 +110,12 @@ def check_gdk_build(mocker, db_name, db_image, redis_image=IMAGE_REDIS):
     file().write.assert_called_once_with(recipe_str)
     archive_name = DIRECTORY_BUILD + NAME + '/' + VERSION + '/' + FILE_ZIP_BASE
     make_archive.assert_called_once_with(archive_name, FILE_ZIP_EXT, DIRECTORY_ARTIFACTS)
-    gdk_config_init.assert_called_once()
-    gdk_config_name.assert_called_once()
-    gdk_config_version.assert_called_once()
-    gdk_config_region.assert_called_once()
-    secret_init.assert_called_once_with(REGION)
-    secret_get.assert_called_once()
+    gdk_config_class.assert_called_once()
+    assert gdk_config.name.call_count == 2
+    assert gdk_config.version.call_count == 3
+    gdk_config.region.assert_called_once()
+    secret_class.assert_called_once()
+    secret.get.assert_called_once()
 
 def test_cockroach_and_redis(mocker):
     """ Recipe assembled with Coackroach and Redis both included """
