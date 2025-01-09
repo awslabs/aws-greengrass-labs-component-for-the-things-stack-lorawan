@@ -55,9 +55,8 @@ class Secret():
     def exists(self):
         """ Determines whether The Things Stack secret already exists in Secrets Manager """
         response = self.secretsmanager_client.list_secrets()
-        if response is not None:
-            for secret in response['SecretList']:
-                if secret['Name'] == self.SECRET_NAME:
-                    return True
+        for secret in response['SecretList']:
+            if secret['Name'] == self.SECRET_NAME:
+                return True
 
         return False
