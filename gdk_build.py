@@ -35,7 +35,7 @@ FILE_DOCKER_COMPOSE = 'docker-compose.yml'
 
 def create_recipe():
     """ Creates the component recipe, filling in the Docker images and Secret ARN """
-    print('Creating recipe {}'.format(FILE_RECIPE))
+    print(f'Creating recipe {FILE_RECIPE}')
 
     secret_json = json.loads(secret_value['SecretString'])
 
@@ -56,18 +56,18 @@ def create_recipe():
     elif 'postgres' in docker_compose_yaml['services']:
         recipe_str = recipe_str.replace('$DOCKER_IMAGE_DB', docker_compose_yaml['services']['postgres']['image'])
     else:
-        print('Neither CockroachDB nor PostgreSQL is included in {}'.format(FILE_DOCKER_COMPOSE))
+        print(f'Neither CockroachDB nor PostgreSQL is included in {FILE_DOCKER_COMPOSE}')
 
     if 'redis' in docker_compose_yaml['services']:
         recipe_str = recipe_str.replace('$DOCKER_IMAGE_REDIS', docker_compose_yaml['services']['redis']['image'])
     else:
-        print('Redis is not included in {}'.format(FILE_DOCKER_COMPOSE))
+        print(f'Redis is not included in {FILE_DOCKER_COMPOSE}')
 
     recipe_yaml = yaml.safe_load(recipe_str)
 
     for index, artifact in reversed(list(enumerate(recipe_yaml['Manifests'][0]['Artifacts']))):
         if '$DOCKER_IMAGE_' in artifact['Uri']:
-            print('Excluding template artifact {}'.format(str(recipe_yaml['Manifests'][0]['Artifacts'][index])))
+            print(f'Excluding template artifact {str(recipe_yaml["Manifests"][0]["Artifacts"][index])}')
             del recipe_yaml['Manifests'][0]['Artifacts'][index]
 
     recipe_str = yaml.dump(recipe_yaml, indent=2, sort_keys=False)
@@ -80,7 +80,7 @@ def create_recipe():
 def create_artifacts():
     """ Creates the artifacts archive as a ZIP file """
     file_name = DIRECTORY_BUILD + gdk_config.name() + '/' + gdk_config.version() + '/' + FILE_ZIP_BASE
-    print('Creating artifacts archive {}'.format(file_name))
+    print(f'Creating artifacts archive {file_name}')
     shutil.make_archive(file_name, FILE_ZIP_EXT, DIRECTORY_ARTIFACTS)
     print('Created artifacts archive')
 

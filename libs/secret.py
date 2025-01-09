@@ -19,10 +19,10 @@ class Secret():
     def get(self):
         """ Gets a secret from Secrets Manager """
         try:
-            print('Getting The Things Stack secret {}'.format(self.SECRET_NAME))
+            print(f'Getting The Things Stack secret {self.SECRET_NAME}')
             response = self.secretsmanager_client.get_secret_value(SecretId=self.SECRET_NAME)
         except Exception as e:
-            print('Failed to get secret\nException: {}'.format(e))
+            print(f'Failed to get secret\nException: {e}')
             raise e
 
         return response
@@ -31,22 +31,22 @@ class Secret():
         """ Creates or updates The Things Stack secret in Secrets Manager """
         if self.exists():
             try:
-                print('Updating The Things Stack secret {}'.format(self.SECRET_NAME))
+                print(f'Updating The Things Stack secret {self.SECRET_NAME}')
                 response = self.secretsmanager_client.update_secret(SecretId=self.SECRET_NAME,
                                                                     SecretString=secret_string,
                                                                     Description=self.SECRET_DESCRIPTION)
             except Exception as e:
-                print('Failed to update The Things Stack secret\nException: {}'.format(e))
+                print(f'Failed to update The Things Stack secret\nException: {e}')
                 raise e
             print('Successfully updated The Things Stack secret')
         else:
             try:
-                print('Creating The Things Stack secret {}'.format(self.SECRET_NAME))
+                print(f'Creating The Things Stack secret {self.SECRET_NAME}')
                 response = self.secretsmanager_client.create_secret(Name=self.SECRET_NAME,
                                                                     SecretString=secret_string,
                                                                     Description=self.SECRET_DESCRIPTION)
             except Exception as e:
-                print('Failed to create The Things Stack secret\nException: {}'.format(e))
+                print(f'Failed to create The Things Stack secret\nException: {e}')
                 raise e
             print('Successfully created The Things Stack secret')
 

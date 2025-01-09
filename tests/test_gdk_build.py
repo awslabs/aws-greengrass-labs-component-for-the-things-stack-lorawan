@@ -74,17 +74,15 @@ def recipe(secret_arn, image_tts, image_db, image_redis):
 def docker_compose(database, database_image, redis_image):
     """ Create a Docker compose fragment """
     docker_compose_str =\
-    """
+    f"""
     services:
         {database}:
             image: {database_image}
-        {redis}:
-            image: {image_redis}
+        {'redis' if redis_image is not OMIT else OMIT}:
+            image: {redis_image}
         stack:
-            image: {image_stack}
-    """.format(database=database, database_image=database_image,
-                redis=('redis' if redis_image is not OMIT else OMIT), image_redis=redis_image,
-                image_stack=IMAGE_STACK)
+            image: {IMAGE_STACK}
+    """
 
     return docker_compose_str.replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
 

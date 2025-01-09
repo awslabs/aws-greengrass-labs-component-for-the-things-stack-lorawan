@@ -35,7 +35,7 @@ def check_output_assert(mock_check_output, extra_args, should_be_called=True):
         mock_check_output.assert_any_call(args, shell=False, stderr=subprocess.STDOUT, timeout=60)
 
         if not should_be_called:
-            pytest.fail('{}\nCommand executed when it should not have been'.format(args))
+            pytest.fail(f'{args}\nCommand executed when it should not have been')
     except AssertionError as e:
         if should_be_called:
             pytest.fail(e)
