@@ -23,7 +23,7 @@ def create_files_from_secret():
     print('Creating files from secret')
     for key, value in secret.items():
         if key not in (KEY_ADMIN_PASS, KEY_ADMIN_EMAIL):
-            print('Creating {}'.format(key))
+            print(f'Creating {key}')
             if '/' in key:
                 os.makedirs(os.path.dirname(key), exist_ok=True)
             with open(key, 'w', encoding="utf-8") as file:
@@ -41,11 +41,11 @@ def run_command(command, alternate_message=None):
         print(output)
         success = True
     except subprocess.CalledProcessError as e:
-        print('CalledProcessError: Return code = {}\n{}'.format(e.returncode, e.output.decode("utf-8")))
+        print(f'CalledProcessError: Return code = {e.returncode}\n{e.output.decode("utf-8")}')
     except subprocess.TimeoutExpired as e:
-        print('TimeoutExpired: \n{}'.format(e.output.decode("utf-8")))
+        print(f'TimeoutExpired: \n{e.output.decode("utf-8")}')
     except Exception as e:
-        print('Exception:\n{}'.format(e))
+        print(f'Exception:\n{e}')
 
     if not success:
         sys.exit(1)
@@ -88,23 +88,23 @@ if enterprise_deployment:
 
 # Create an admin user
 run_command('docker-compose run --rm stack is-db create-admin-user '\
-            '--id admin --password {} --email {}'.format(secret[KEY_ADMIN_PASS], secret[KEY_ADMIN_EMAIL]),
+            f'--id admin --password {secret[KEY_ADMIN_PASS]} --email {secret[KEY_ADMIN_EMAIL]}',
             'docker-compose run --rm stack is-db create-admin-user [CREDENTIALS REDACTED]')
 
 # Register the CLI as an OAuth client
 run_command('docker-compose run --rm stack is-db create-oauth-client '\
             '--id cli --name "Command Line Interface" --owner admin --no-secret '\
-            '--redirect-uri "local-callback" --redirect-uri "code"{}'.format(oauth_all_tenants))
+            f'--redirect-uri "local-callback" --redirect-uri "code"{oauth_all_tenants}')
 
 # Register the Console as an OAuth client
 run_command('docker-compose run --rm stack is-db create-oauth-client '\
-            '--id console --name "Console" --owner admin --secret "{}" '\
-            '--redirect-uri "/console/oauth/callback" --logout-redirect-uri "/console"{}'\
-            .format(stack_config_yaml['console']['oauth']['client-secret'], oauth_all_tenants))
+            '--id console --name "Console" --owner admin '\
+            f'--secret "{stack_config_yaml["console"]["oauth"]["client-secret"]}" '\
+            f'--redirect-uri "/console/oauth/callback" --logout-redirect-uri "/console"{oauth_all_tenants}')
 
 # Register the Device Claiming Server as an OAuth client (if Enterprise deployment)
 if enterprise_deployment:
     run_command('docker-compose run --rm stack is-db create-oauth-client '\
-                '--id device-claiming --name "Device Claiming Server" --owner admin --secret "{}" '\
-                '--redirect-uri "/claim/oauth/callback" --logout-redirect-uri "/claim"{}'\
-                .format(stack_config_yaml['dcs']['oauth']['client-secret'], oauth_all_tenants))
+                '--id device-claiming --name "Device Claiming Server" --owner admin '\
+                f'--secret "{stack_config_yaml["dcs"]["oauth"]["client-secret"]}" '\
+                f'--redirect-uri "/claim/oauth/callback" --logout-redirect-uri "/claim"{oauth_all_tenants}')

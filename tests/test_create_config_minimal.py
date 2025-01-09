@@ -17,7 +17,7 @@ FAKE_SECRET='deadface'
 def config(domain, key, secret):
     """ Create a configuration fragment """
     config_str =\
-    """
+    f"""
     is:
     email:
         sender-address: 'noreply@{domain}'
@@ -30,7 +30,7 @@ def config(domain, key, secret):
     console:
     oauth:
         client-secret: '{secret}'
-    """.format(domain=domain, key=key, secret=secret)
+    """
 
     return config_str
 
