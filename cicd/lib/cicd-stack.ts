@@ -13,8 +13,6 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as gdkConfig from '../../gdk-config.json';
 
 enum Names {
-    PREFIX_DASH = 'gg-ttsl-cicd',
-    PREFIX_CAMEL = 'GgTtslCicd',
     SECRET = 'greengrass-tts-lorawan'
 }
 
@@ -36,8 +34,8 @@ export class CicdStack extends cdk.Stack {
         const componentName = Object.keys(gdkConfig['component'])[0];
         const bucketName = gdkConfig['component'][componentName as keyof typeof gdkConfig['component']]['publish']['bucket'];
 
-        const buildProject = new codebuild.PipelineProject(this, `${Names.PREFIX_CAMEL}Build`, {
-            projectName: `${Names.PREFIX_DASH}-build`,
+        const buildProject = new codebuild.PipelineProject(this, `${this.stackName}Build`, {
+            projectName: `${this.stackName}Build`,
             buildSpec: codebuild.BuildSpec.fromSourceFilename('cicd/buildspec.yaml'),
             environment: {
                 buildImage: codebuild.LinuxBuildImage.STANDARD_7_0
@@ -45,8 +43,8 @@ export class CicdStack extends cdk.Stack {
             timeout: cdk.Duration.minutes(5),
         });
 
-        const deployProject = new codebuild.PipelineProject(this, `${Names.PREFIX_CAMEL}Deploy`, {
-            projectName: `${Names.PREFIX_DASH}-deploy`,
+        const deployProject = new codebuild.PipelineProject(this, `${this.stackName}Deploy`, {
+            projectName: `${this.stackName}Deploy`,
             buildSpec: codebuild.BuildSpec.fromSourceFilename('cicd/deployspec.yaml'),
             environment: {
                 buildImage: codebuild.LinuxBuildImage.STANDARD_7_0
@@ -54,28 +52,28 @@ export class CicdStack extends cdk.Stack {
             timeout: cdk.Duration.minutes(15),
         });
 
-        const testProject = new codebuild.PipelineProject(this, `${Names.PREFIX_CAMEL}Test`, {
-            projectName: `${Names.PREFIX_DASH}-test`,
+        const testProject = new codebuild.PipelineProject(this, `${this.stackName}Test`, {
+            projectName: `${this.stackName}Test`,
             buildSpec: codebuild.BuildSpec.fromSourceFilename('cicd/testspec.yaml'),
             environment: {
-                buildImage: codebuild.LinuxBuildImage.fromCodeBuildImageId('aws/codebuild/standard:5.0-21.08.20')
+                buildImage: codebuild.LinuxBuildImage.STANDARD_7_0
             },
             timeout: cdk.Duration.minutes(5),
         });
 
-        const pipelineBucket = new s3.Bucket(this, `${Names.PREFIX_CAMEL}Bucket`, {
-            bucketName: `${Names.PREFIX_DASH}-${this.account}-${this.region}`,
+        const pipelineBucket = new s3.Bucket(this, `${this.stackName}Bucket`, {
+            bucketName: `${this.stackName.toLowerCase()}-${this.account}-${this.region}`,
             blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
             versioned: false,
         });
 
-        const topic = new sns.Topic(this, `${Names.PREFIX_CAMEL}Notification`, {
-            topicName: `${Names.PREFIX_DASH}-notification`,
-            displayName: 'GG TTSL CI/CD Notification'
+        const topic = new sns.Topic(this, `${this.stackName}Notification`, {
+            topicName: `${this.stackName}Notification`,
+            displayName: `${this.stackName} CI/CD Notification`
         });
 
         // We create the unit tests report group explicitly, rather than let CodeBuild do it, so that we can define the raw results export
-        new codebuild.CfnReportGroup(this, `${Names.PREFIX_CAMEL}UnitTestReportGroup`, {
+        new codebuild.CfnReportGroup(this, `${this.stackName}UnitTestReportGroup`, {
             type: 'TEST',
             name: `${buildProject.projectName}-UnitTestsReport`,
             exportConfig: {
@@ -89,7 +87,7 @@ export class CicdStack extends cdk.Stack {
         });
 
         // We create the integration tests report group explicitly, rather than let CodeBuild do it, so that we can define the raw results export
-        new codebuild.CfnReportGroup(this, `${Names.PREFIX_CAMEL}IntegrationTestReportGroup`, {
+        new codebuild.CfnReportGroup(this, `${this.stackName}IntegrationTestReportGroup`, {
             type: 'TEST',
             name: `${testProject.projectName}-IntegrationTestsReport`,
             exportConfig: {
@@ -162,7 +160,7 @@ export class CicdStack extends cdk.Stack {
         const test = new codepipeline.Artifact('Test');
 
         const sourceAction = new codepipeline_actions.CodeStarConnectionsSourceAction({
-            actionName: `${Names.PREFIX_DASH}-source`,
+            actionName: `Source`,
             output: source,
             connectionArn: `arn:aws:codestar-connections:${this.region}:${this.account}:connection/${context.connectionId}`,
             owner: context.ownerName,
@@ -171,14 +169,14 @@ export class CicdStack extends cdk.Stack {
         });
 
         const buildAction = new codepipeline_actions.CodeBuildAction({
-            actionName: `${Names.PREFIX_DASH}-build`,
+            actionName: `Build`,
             project: buildProject,
             input: source,
             outputs: [build]
         });
 
         const deployAction = new codepipeline_actions.CodeBuildAction({
-            actionName: `${Names.PREFIX_DASH}-deploy`,
+            actionName: `Deploy`,
             project: deployProject,
             input: source,
             extraInputs: [build],
@@ -189,7 +187,7 @@ export class CicdStack extends cdk.Stack {
         });
 
         const testAction = new codepipeline_actions.CodeBuildAction({
-            actionName: `${Names.PREFIX_DASH}-test`,
+            actionName: `Test`,
             project: testProject,
             input: source,
             outputs: [test],
@@ -198,8 +196,8 @@ export class CicdStack extends cdk.Stack {
             }
         });
 
-        const pipeline = new codepipeline.Pipeline(this, `${Names.PREFIX_CAMEL}Pipeline`, {
-            pipelineName: `${Names.PREFIX_DASH}-pipeline`,
+        const pipeline = new codepipeline.Pipeline(this, `${this.stackName}`, {
+            pipelineName: `${this.stackName}`,
             pipelineType: codepipeline.PipelineType.V2,
             artifactBucket: pipelineBucket,
             stages: [
@@ -223,7 +221,7 @@ export class CicdStack extends cdk.Stack {
         });
 
         // Send only SUCCEEDED and FAILED states to the SNS topic, to give a pipeline execution result
-        const notificationRule = pipeline.onStateChange(`${Names.PREFIX_CAMEL}StateChange`);
+        const notificationRule = pipeline.onStateChange(`${this.stackName}StateChange`);
         notificationRule.addEventPattern({ detail: { state: ['SUCCEEDED','FAILED'] } });
         const state = events.EventField.fromPath('$.detail.state')
         const executionId = events.EventField.fromPath('$.detail.execution-id')
