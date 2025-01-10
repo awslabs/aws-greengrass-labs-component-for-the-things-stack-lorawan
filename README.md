@@ -489,7 +489,7 @@ The issue can be resolved by using Redis 6.0 or by upgrading **libseccomp**.
 
 ### Configuration Changes Not Deployed
 
-The Greengrass Secret Manager component needs to fetch the configuration secret from the cloud, for any changes to be seen by The Things Stack LoRaWAN component. The Secret Manager will not necessarily fetch the secret even when a new version of the component is deployed. Restart or reboot the core device to force a fetch.
+The Greengrass Secret Manager component fetches the configuration secret from the cloud when the component starts up. If you change the value of the secret, you need to deploy a new component version, restart Greengrass, or reboot the core device to refresh the value.
 
 The deployed configuration can be found at **/greengrass/v2/work/aws.greengrass.labs.TheThingsStackLoRaWAN/docker-compose.yml** and **/greengrass/v2/work/aws.greengrass.labs.TheThingsStackLoRaWAN/config/stack/ttn-lw-stack-docker.yml**.
 
