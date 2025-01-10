@@ -1,2 +1,2 @@
-robotframework==4.1
-robotframework-requests==0.9.1
+robotframework==7.1.1
+robotframework-requests==0.9.7
