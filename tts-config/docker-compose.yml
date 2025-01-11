@@ -1,21 +1,12 @@
-version: '3.3'
+version: '3.7'
 services:
 
-  # If using CockroachDB:
-  # cockroach:
-    # In production, replace 'latest' with tag from https://hub.docker.com/r/cockroachdb/cockroach/tags
-  #   image: cockroachdb/cockroach:latest
-  #   command: start-single-node --http-port 26256 --insecure
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ${DEV_DATA_DIR:-.env/data}/cockroach:/cockroach/cockroach-data
-  #   ports:
-  #     - "127.0.0.1:26257:26257" # Cockroach
-  #     - "127.0.0.1:26256:26256" # WebUI
-
-  # If using PostgreSQL:
   postgres:
-    image: postgres:14.1
+    # In production, replace 'latest' with tag from https://hub.docker.com/_/postgres?tab=tags
+    # If you are not using the Storage Integration nor Network Operations Center, you can use vanilla Postgres.
+    # The minimum Postgres version supported is 14.x.
+    # image: "timescale/timescaledb:latest-pg14"
+    image: postgres:17.2
     restart: unless-stopped
     environment:
       - POSTGRES_PASSWORD=root
@@ -28,7 +19,7 @@ services:
 
   redis:
     # In production, replace 'latest' with tag from https://hub.docker.com/_/redis?tab=tags
-    image: redis:6.0
+    image: redis:7.4.2
     command: redis-server --appendonly yes
     restart: unless-stopped
     volumes:
@@ -36,20 +27,46 @@ services:
     ports:
       - "127.0.0.1:6379:6379"
 
+#  grafana:
+    # In production, replace 'latest' with tag from https://github.com/thethingsindustries/lorawan-stack-noc-grafana/pkgs/container/lorawan-stack-noc-grafana/versions
+    # Enable this when using TTI Enterprise
+    # Make sure the tag matches the version used for the stack service (see below)
+#    image: "ghcr.io/thethingsindustries/lorawan-stack-noc-grafana:latest"
+#    environment:
+#      - GF_AUTH_PROXY_AUTO_SIGN_UP=false
+#      - GF_AUTH_PROXY_ENABLE_LOGIN_TOKEN=false
+#      - GF_AUTH_PROXY_ENABLED=true
+#      - GF_AUTH_PROXY_HEADER_NAME=X-WEBAUTH-USER
+#      - GF_AUTH_SIGNOUT_REDIRECT_URL=/noc/logout
+#      - GF_DATABASE_PATH=db/grafana.db
+#      - GF_DEFAULT_APP_MODE=development
+#      - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=thethingsindustries-ttsnoc-datasource
+#      - GF_PLUGINS_PLUGIN_ADMIN_ENABLED=false
+#      - GF_SECURITY_CONTENT_SECURITY_POLICY_TEMPLATE=script-src 'self' 'unsafe-eval' 'unsafe-inline' 'strict-dynamic' $$NONCE;object-src 'none';font-src 'self';style-src 'self' 'unsafe-inline' blob:;img-src * data:;base-uri 'self';connect-src 'self' wss:;manifest-src 'self';media-src 'none';form-action 'self';
+#      - GF_SECURITY_CONTENT_SECURITY_POLICY=true
+#      - GF_SERVER_ROOT_URL=/noc
+#      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+#      - GF_USERS_DEFAULT_THEME=light
+#    depends_on:
+#      - postgres
+#      - stack
+#    volumes:
+#      - ${DEV_DATA_DIR:-.env/data}/grafana/db:/var/lib/grafana/db
+#    ports:
+#      - "127.0.0.1:3000:3000"
+
+
   stack:
     # In production, replace 'latest' with tag from https://hub.docker.com/r/thethingsindustries/lorawan-stack/tags
     # Use TTI for Enterprise and TTN for Open Source
     # image: thethingsindustries/lorawan-stack:latest
     # entrypoint: tti-lw-stack -c /config/ttn-lw-stack-docker.yml
-    image: thethingsnetwork/lorawan-stack:3.17.1
+    image: thethingsnetwork/lorawan-stack:3.33.0
     entrypoint: ttn-lw-stack -c /config/ttn-lw-stack-docker.yml
     command: start
     restart: unless-stopped
     depends_on:
       - redis
-      # If using CockroachDB:
-      # - cockroach
-      # If using PostgreSQL:
       - postgres
     volumes:
       - ./blob:/srv/ttn-lorawan/public/blob
@@ -59,10 +76,11 @@ services:
     environment:
       TTN_LW_BLOB_LOCAL_DIRECTORY: /srv/ttn-lorawan/public/blob
       TTN_LW_REDIS_ADDRESS: redis:6379
-      # If using CockroachDB:
-      # TTN_LW_IS_DATABASE_URI: postgres://root@cockroach:26257/ttn_lorawan?sslmode=disable
-      # If using PostgreSQL:
       TTN_LW_IS_DATABASE_URI: postgres://root:root@postgres:5432/ttn_lorawan?sslmode=disable
+      # Enable when using TTI Enterprise and NOC
+#      TTN_LW_NOC_GRAFANA_NOC_ADDRESS: stack:1884
+#      TTN_LW_NOC_GRAFANA_TARGET_URL: http://grafana:3000
+#      TTN_LW_NOC_STORE_DATABASE_URI: postgres://root:root@postgres:5432/ttn_lorawan?sslmode=disable
 
     ports:
       # If deploying on a public server:
@@ -78,7 +96,9 @@ services:
       - "8884:8884"
       # - "1885:1885"
       - "8885:8885"
-      # - "1887:1887"
+      - "1886:1886"
+      - "8886:8886"
+      - "1887:1887"
       - "8887:8887"
       # Device Claim Server ports for Enterprise
       # - "1888:1888"

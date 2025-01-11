@@ -77,34 +77,52 @@ multi_tenant = enterprise_deployment and 'tenancy' in stack_config_yaml and\
 oauth_all_tenants = ' --tenant-id NULL' if multi_tenant else ''
 
 # Initialize the database of the identity server
-run_command('docker-compose run --rm stack is-db init')
+run_command('docker compose run --rm stack is-db migrate')
 
 # Steps required only for Enterprise deployments
 if enterprise_deployment:
     # Initialize the database of the Application Server (storage integration)
-    run_command('docker-compose run --rm stack storage-db init')
+    run_command('docker compose run --rm stack storage-db init')
+    # Initialize the Network Operations Center
+    run_command('docker compose run --rm stack noc-db init')
     # Create a tenant (must have at least one) - this will use tenancy.default-id from the configuration file
-    run_command('docker-compose run --rm stack is-db create-tenant')
+    run_command('docker compose run --rm stack is-db create-tenant')
 
 # Create an admin user
-run_command('docker-compose run --rm stack is-db create-admin-user '\
+run_command('docker compose run --rm stack is-db create-admin-user '\
             f'--id admin --password {secret[KEY_ADMIN_PASS]} --email {secret[KEY_ADMIN_EMAIL]}',
-            'docker-compose run --rm stack is-db create-admin-user [CREDENTIALS REDACTED]')
+            'docker compose run --rm stack is-db create-admin-user [CREDENTIALS REDACTED]')
 
 # Register the CLI as an OAuth client
-run_command('docker-compose run --rm stack is-db create-oauth-client '\
+run_command('docker compose run --rm stack is-db create-oauth-client '\
             '--id cli --name "Command Line Interface" --owner admin --no-secret '\
             f'--redirect-uri "local-callback" --redirect-uri "code"{oauth_all_tenants}')
 
 # Register the Console as an OAuth client
-run_command('docker-compose run --rm stack is-db create-oauth-client '\
+run_command('docker compose run --rm stack is-db create-oauth-client '\
             '--id console --name "Console" --owner admin '\
             f'--secret "{stack_config_yaml["console"]["oauth"]["client-secret"]}" '\
-            f'--redirect-uri "/console/oauth/callback" --logout-redirect-uri "/console"{oauth_all_tenants}')
+            f'--redirect-uri "{stack_config_yaml["console"]["ui"]["canonical-url"]}/oauth/callback" '\
+            f'--redirect-uri "/console/oauth/callback" '\
+            f'--logout-redirect-uri "{stack_config_yaml["console"]["ui"]["canonical-url"]}" '\
+            f'--logout-redirect-uri "/console"{oauth_all_tenants}')
 
-# Register the Device Claiming Server as an OAuth client (if Enterprise deployment)
+# NOC is only available in enterprise deployments
 if enterprise_deployment:
-    run_command('docker-compose run --rm stack is-db create-oauth-client '\
+    # Register the Network Operations Center as an OAuth client
+    run_command('docker compose run --rm stack is-db create-oauth-client '\
+                '--id noc --name "Network Operations Center" --owner admin '\
+                f'--secret "{stack_config_yaml["noc"]["oauth"]["client-secret"]}" '\
+                f'--redirect-uri "{stack_config_yaml["noc"]["ui"]["canonical-url"]}/oauth/callback" '\
+                f'--redirect-uri "/noc/oauth/callback" '\
+                f'--logout-redirect-uri "{stack_config_yaml["noc"]["ui"]["canonical-url"]}" '\
+                f'--logout-redirect-uri "/noc"{oauth_all_tenants}')
+
+    # Register the Device Claiming Server as an OAuth client
+    run_command('docker compose run --rm stack is-db create-oauth-client '\
                 '--id device-claiming --name "Device Claiming Server" --owner admin '\
                 f'--secret "{stack_config_yaml["dcs"]["oauth"]["client-secret"]}" '\
-                f'--redirect-uri "/claim/oauth/callback" --logout-redirect-uri "/claim"{oauth_all_tenants}')
+                f'--redirect-uri "{stack_config_yaml["dcs"]["ui"]["canonical-url"]}/oauth/callback" '\
+                f'--redirect-uri "/claim/oauth/callback" '\
+                f'--logout-redirect-uri "{stack_config_yaml["dcs"]["ui"]["canonical-url"]}" '\
+                f'--logout-redirect-uri "/claim"{oauth_all_tenants}')

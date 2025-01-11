@@ -20,16 +20,16 @@ def config(domain, key, secret):
     f"""
     is:
     email:
-        sender-address: 'noreply@{domain}'
+        sender-address: "noreply@{domain}"
         network:
-        console-url: 'https://{domain}/console'
+        console-url: "https://{domain}/console"
     http:
     cookie:
-        block-key: '{key}'
-        hash-key: '{key}'
+        block-key: "{key}"
+        hash-key: "{key}"
     console:
     oauth:
-        client-secret: '{secret}'
+        client-secret: "{secret}"
     """
 
     return config_str
