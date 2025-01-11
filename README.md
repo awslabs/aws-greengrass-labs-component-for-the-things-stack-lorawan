@@ -3,12 +3,12 @@
 [The Things Stack](https://www.thethingsindustries.com/docs/) is an [open-source LoRaWAN stack](https://github.com/TheThingsNetwork/lorawan-stack). Users can deploy the stack as [Open Source](https://hub.docker.com/r/thethingsnetwork/lorawan-stack) (free) or [Enterprise](https://hub.docker.com/r/thethingsindustries/lorawan-stack) (requires a [license](https://accounts.thethingsindustries.com/fee-calculator/)) from images available on Docker Hub.
 
 
-This repository facilitates packaging The Things Stack into an AWS IoT Greengrass V2 component named **aws.greengrass.labs.TheThingsStackLoRaWAN**. This component enables customer use cases that require a private LoRaWAN Network Server (LNS) at the edge. The Things Stack is also offered as [an AWS Marketplace AMI](https://aws.amazon.com/marketplace/pp/prodview-okhh3ofzhqj56). This Greengrass component is a logical equivalent, but pitching at the edge.
+This repository packages The Things Stack into an AWS IoT Greengrass V2 component named **aws.greengrass.labs.TheThingsStackLoRaWAN**. This component enables use cases where you require a private LoRaWAN Network Server (LNS) at the edge. The Things Stack is also offered as [an AWS Marketplace AMI](https://aws.amazon.com/marketplace/pp/prodview-okhh3ofzhqj56). This Greengrass component is a logical equivalent, but pitching at the edge.
 
 
 For Enterprise deployments, ingestion into AWS IoT Core can be achieved by deploying [The Things Stack AWS IoT default integration](https://www.thethingsindustries.com/docs/integrations/aws-iot/default/) into your AWS account. For Open Source deployments, [The Things Stack Pub/Sub integration](https://www.thethingsindustries.com/docs/integrations/pubsub/) is a good option for achieving ingestion into AWS IoT Core.
 
-The Pub/Sub integration can also be used to publish and subscribe to topics on the Greengrass local [Moquette MQTT broker](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-broker-moquette-component.html). This allows integration with the cloud, other Greengrass components on the same device and/or with other devices on the local network. The Things Stack can therefore leverage [AWS-managed Greengrass components](https://docs.aws.amazon.com/greengrass/v2/developerguide/public-components.html), [custom Greengrass components](https://docs.aws.amazon.com/greengrass/v2/developerguide/develop-greengrass-components.html), [community Greengrass components](https://github.com/orgs/awslabs/teams/aws-greengrass-labs/repositories) and AWS services to deliver powerful edge solutions that extend The Things Stack's capabilities.
+The Pub/Sub integration can also be used to publish and subscribe to topics on the Greengrass local [EMQX MQTT broker](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-broker-emqx-component.html) or [Moquette MQTT broker](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-broker-moquette-component.html). This allows integration with the cloud, other Greengrass components on the same device and/or with other devices on the local network. The Things Stack can therefore leverage [AWS-managed Greengrass components](https://docs.aws.amazon.com/greengrass/v2/developerguide/public-components.html), [custom Greengrass components](https://docs.aws.amazon.com/greengrass/v2/developerguide/develop-greengrass-components.html), [community Greengrass components](https://github.com/orgs/awslabs/teams/aws-greengrass-labs/repositories) and AWS services to deliver powerful edge solutions that extend The Things Stack's capabilities.
 
 # Table of Contents
 * [Architecture](#architecture)
@@ -27,7 +27,7 @@ The Pub/Sub integration can also be used to publish and subscribe to topics on t
     * [Python](#python)
     * [GDK CLI](#gdk-cli)
     * [Bash](#bash)
-    * [jq](#jq)
+    * [yq](#yq)
 * [Getting Started](#getting-started)
   * [Quickstart](#quickstart)
   * [Slowstart](#slowstart)
@@ -38,11 +38,9 @@ The Pub/Sub integration can also be used to publish and subscribe to topics on t
 * [The Things Stack Configuration Tips](#the-things-stack-configuration-tips)
   * [Defaults](#defaults)
   * [Enterprise versus Open Source](#enterprise-versus-open-source)
-  * [Production Deployments](#production-deployments)
-  * [Image Architecture](#image-architecture)
   * [Pub/Sub Integration](#pubsub-integration)
     * [AWS IoT Core](#aws-iot-core)
-    * [Greengrass Moquette MQTT Broker](#greengrass-moquette-mqtt-broker)
+    * [Greengrass MQTT Broker](#greengrass-mqtt-broker)
 * [Operations](#operations)
   * [Clean Uninstall](#clean-uninstall)
   * [Data Backup](#data-backup)
@@ -53,9 +51,7 @@ The Pub/Sub integration can also be used to publish and subscribe to topics on t
     * [Docker Container Logs](#docker-container-logs)
   * [Common Failures](#common-failures)
     * [Wrong Docker Image Architecture](#wrong-docker-image-architecture)
-    * [Redis Keeps Restarting](#redis-keeps-restarting)
     * [Configuration Changes Not Deployed](#configuration-changes-not-deployed)
-    * [Database Access Fails](#database-access-fails)
 * [Development](#development)
   * [Static Analysis](#static-analysis)
   * [Unit Tests](#unit-tests)
@@ -68,15 +64,15 @@ An overview of the system architecture is presented below.
 
 The **aws.greengrass.labs.TheThingsStackLoRaWAN** component is a thin wrapper around a conventional The Things Stack deployment. The Things Stack is composed of multiple Docker containers, using Docker Compose. Subject to configuration, there may be a Redis container and a PostreSQL container, in addition to The Things Stack container.
 
-The Things Stack is delivered as Docker images on Docker Hub. This component downloads Docker images from Docker Hub with the help of the [Docker application manager](https://docs.aws.amazon.com/greengrass/v2/developerguide/docker-application-manager-component.html) managed component.
+The Things Stack is delivered as Docker images on Docker Hub. This component downloads Docker images from Docker Hub with the help of the [Docker application manager](https://docs.aws.amazon.com/greengrass/v2/developerguide/docker-application-manager-component.html) component.
 
-The Things Stack configuration includes a considerable amount of sensitive information. Accordingly, the configuration is stored as a secret in [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/). This component gets its configuration from Secrets Manager with the help of the [Secret manager](https://docs.aws.amazon.com/greengrass/v2/developerguide/secret-manager-component.html) managed component. 
+The Things Stack configuration includes sensitive information. Accordingly, the configuration is stored as a secret in [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/). This component gets its configuration from Secrets Manager with the help of the [Secret manager](https://docs.aws.amazon.com/greengrass/v2/developerguide/secret-manager-component.html) component. 
 
 The Things Stack offers [an API](https://www.thethingsindustries.com/docs/getting-started/api/) and various [integrations](https://www.thethingsindustries.com/docs/integrations/) that can be used for remote ingestion or control, or can be used by other Greengrass components to achieve local data processing and actions. 
 
 For Enterprise deployments, ingestion into AWS IoT Core can be best achieved by deploying [The Things Stack AWS IoT default integration](https://www.thethingsindustries.com/docs/integrations/aws-iot/default/) into your AWS account. This is option is shown in **green** on the architecture diagram.
 
-As shown in **blue**, The Things Stack can use its [Pub/Sub integration](https://www.thethingsindustries.com/docs/integrations/pubsub/) to connect directly to AWS IoT Core. This option would typically only be used for deployments of the Open Source edition of The Things Stack. Alternatively, and more powerfully, the Pub/Sub integration can instead connect to the local Greengrass [Moquette MQTT broker](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-broker-moquette-component.html). This is option is shown in **red**. If The Things Stack and other TCP/IP devices on the local network are registered as [Local Client Devices with Greengrass](https://aws.amazon.com/blogs/iot/implementing-local-client-devices-with-aws-iot-greengrass/), this architecture allows The Things Stack to communicate with those [other devices via the broker](https://docs.aws.amazon.com/greengrass/v2/developerguide/interact-with-local-iot-devices.html) **and** with [other Greengrass components via Greengrass Interprocess Communication](https://docs.aws.amazon.com/greengrass/v2/developerguide/ipc-publish-subscribe.html). Furthermore, the [MQTT bridge](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-bridge-component.html) connects AWS IoT Core as an additional publisher and subscriber, facilitating cloud integration as well.
+As shown in **blue**, The Things Stack can use its [Pub/Sub integration](https://www.thethingsindustries.com/docs/integrations/pubsub/) to connect directly to AWS IoT Core. This option would typically only be used for deployments of the Open Source edition of The Things Stack. Alternatively, and more powerfully, the Pub/Sub integration can instead connect to the local Greengrass [EMQX MQTT broker](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-broker-emqx-component.html) or [Moquette MQTT broker](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-broker-moquette-component.html). This is option is shown in **red**. If The Things Stack and other TCP/IP devices on the local network are registered as [Local Client Devices with Greengrass](https://aws.amazon.com/blogs/iot/implementing-local-client-devices-with-aws-iot-greengrass/), this architecture allows The Things Stack to communicate with those [other devices via the broker](https://docs.aws.amazon.com/greengrass/v2/developerguide/interact-with-local-iot-devices.html) **and** with AWS IoT Core and other Greengrass components via the [MQTT bridge](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-bridge-component.html) and [Greengrass Interprocess Communication](https://docs.aws.amazon.com/greengrass/v2/developerguide/ipc-publish-subscribe.html).
 
 # Repository Contents
 
@@ -96,7 +92,7 @@ As shown in **blue**, The Things Stack can use its [Pub/Sub integration](https:/
 | gdk_build.py                  | Custom build script for the Greengrass Development Kit (GDK) - Command Line Interface.                |
 | gdk-config.json               | Configuration for the Greengrass Development Kit (GDK) - Command Line Interface.                      |
 | quickstart.sh                 | Creates and deploys a component with default configuration for a given domain name or IP address.     |
-| recipe.json                   | Greengrass V2 component recipe template.                                                              |
+| recipe.yaml                   | Greengrass V2 component recipe template.                                                              |
 
 # Requirements and Prerequisites
 
@@ -160,7 +156,7 @@ Policy template to add to your device role (substituting correct values for ACCO
 
 ### AWS CLI
 
-It may be necessary to [upgrade your AWS CLI](https://docs.aws.amazon.com/systems-manager/latest/userguide/getting-started-cli.html) if you wish to use any **greengrassv2** commands, as these are relatively recent additions to the CLI.
+The AWS CLI should be installed.
 
 ### cfssl
 
@@ -206,20 +202,13 @@ pip3 install git+https://github.com/aws-greengrass/aws-greengrass-gdk-cli.git
 
 The **quickstart.sh** and **create_certs.sh** scripts are Bash scripts. If using a Windows machine, you will need a Bash environment.
 
-### jq
+### yq
 
-The **jq** utility is used by **quickstart.sh**. Release packages for Linux, OS X and Windows are available on the [jq](https://stedolan.github.io/jq/) site.
-
-Alternatively, Ubuntu includes a **jq** package:
-
-```
-sudo apt update
-sudo apt install jq
-```
+The **yq** utility is used by **quickstart.sh**. Installation instructions and release packages for Linux, OS X and Windows are available on the [yq](https://github.com/mikefarah/yq) site.
 
 # Getting Started
 
-Here we define two ways to get started: Quickstart or Slowstart.
+You can choose between two ways to get started: Quickstart or Slowstart.
 
 All scripts are compatible with Linux, Mac or Windows operating systems, provided a Bash environment is available.
 
@@ -231,12 +220,12 @@ Before running the script, users must:
 
 1. Deploy Greengrass V2 to a Linux machine, virtual machine or EC2 instance.
 2. Initialize the Greengrass core device to satisfy the [the requirements to run Docker containers using Docker Compose and Docker Hub](https://docs.aws.amazon.com/greengrass/v2/developerguide/run-docker-container.html).
-3. Install **cfssl** on the developer machine.
+3. Install **cfssl** and **yq** on the developer machine.
 4. Set the AWS region in **gdk-config.json**.
 
 The Quickstart script will:
 
-1. Install required Python packages.
+1. Install required Python packages if you haven't already. (Activate a Python virtual environment before running the script.)
 2. Create self-signed certificates for a given domain name or IP address.
 3. Create a minimal The Things Stack configuration for the given domain name or IP address.
 4. Upload the secure configuration to a configuration secret in Secrets Manager.
@@ -263,6 +252,7 @@ bash quickstart.sh example.com mypassword user@example.com GGTheThingsStackLoRaW
 For any serious use of the component, Quickstart shall not be appropriate.
 
 ### Manual Deployment
+
 If not using Quickstart, you must perform the following steps:
 
 1. Deploy the Greengrass runtime to your machine, virtual machine or EC2 instance. This should be a Linux machine, but can be of any architecture. 
@@ -275,9 +265,9 @@ If not using Quickstart, you must perform the following steps:
 8. Run **gdk component build** to build the component.
 9. Run **gdk component publish** to create a component version in Greengrass cloud service, and upload artifacts to S3.
 10. Add permissions for the configuration secret and artifacts bucket to the Greengrass core device role. 
-11. Run **deploy_component_version.py** to deploy the new component version to your Greengrass device.
+11. he component can then be deployed using [the console or using the AWS CLI](https://docs.aws.amazon.com/greengrass/v2/developerguide/create-deployments.html) in the normal way. Alternatively it can be deployed using the supplied **deploy_component_version.py** script.
 
-For iterative configuration changes, repeat steps 2, 7, 8, 9 and 11.
+For iterative configuration changes, repeat steps 2 and 7. For iterative component changes, repeat steps 8, 9 and 11.
 
 
 ### Example Execution
@@ -302,7 +292,7 @@ This example:
 
 This repository offers a CodePipeline [CI/CD pipeline](cicd/README.md) as a CDK application. This can be optionally deployed to the same account as the Greengrass core.
 
-This CI/CD pipeline automates steps 8,9 and 11. Following deployment, it performs automated smoke tests to ensure that The Things Stack has started correctly. With the pipeline deployed, users can make iterative configuration changes, update the configuration secret using **create_config_secret.py**, and then trigger the CI/CD pipeline to handle the rest.
+This CI/CD pipeline automates steps 8, 9 and 11. Following deployment, it performs automated smoke tests to ensure that The Things Stack has started correctly. 
 
 ### Automated Testing
 
@@ -334,14 +324,6 @@ As compared to Open Source, an Enterprise license adds:
 - [AWS IoT Default Integration](https://www.thethingsindustries.com/docs/integrations/cloud-integrations/aws-iot/default/) support
 - Support plan
 
-## Production Deployments
-
-Per The Things Stack recommendations, production deployments should reference specific Docker image tags (not just **latest**) and consideration should also be given to using external managed instances of the databases.
-
-## Image Architecture
-
-The Things Stack images tagged **latest** on Docker Hub are not available for all architectures. Only formal releases are.
-
 ## Pub/Sub Integration
 
 ### AWS IoT Core
@@ -370,48 +352,42 @@ Add a Pub/Sub integration in your Application in The Things Stack with the follo
 | MQTT Configuration: Client private key    | Private key saved when creating the Thing in AWS IoT Core           |
 | MQTT Configuration: Server URL            | mqtts://ENDPOINTID-ats.iot.ap-REGION.amazonaws.com:8883             |
 
-### Greengrass Moquette MQTT Broker
+### Greengrass MQTT Broker
 
-Greengrass V2 includes an [AWS-managed Moquette MQTT broker component](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-broker-moquette-component.html). This can be deployed to Greengrass to [allow Greengrass components and devices on your local network to communicate with each other](https://docs.aws.amazon.com/greengrass/v2/developerguide/interact-with-local-iot-devices.html), without relying on an internet connection to AWS IoT Core. 
+Greengrass V2 includes two AWS-managed brokers, the [EMQX MQTT broker component](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-broker-emqx-component.html) and the [Moquette MQTT broker component](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-broker-moquette-component.html). Either of these can be deployed to Greengrass to [allow Greengrass components and devices on your local network to communicate with each other](https://docs.aws.amazon.com/greengrass/v2/developerguide/interact-with-local-iot-devices.html), without relying on an internet connection to AWS IoT Core.
 
-Using the [Pub/Sub integration](https://www.thethingsindustries.com/docs/integrations/pubsub/), The Things Stack can be a "local IoT device" that connects to the Moquette broker. Additionally, Greengrass V2 includes an [AWS-managed MQTT Bridge component](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-bridge-component.html). When this is also deployed, The Things Stack can use its Pub/Sub Integration to communicate with local devices, Greengrass components and AWS IoT Core; the best of all worlds.
+Using the [Pub/Sub integration](https://www.thethingsindustries.com/docs/integrations/pubsub/), The Things Stack can be a "local IoT device" that connects to the EMQX or Moquette broker. Additionally, Greengrass V2 includes an [AWS-managed MQTT Bridge component](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-bridge-component.html). When this is also deployed, The Things Stack can use its Pub/Sub Integration to communicate with local devices, Greengrass components and AWS IoT Core; the best of all worlds.
 
-By default, The Things Stack deploys an [MQTT Server](https://www.thethingsindustries.com/docs/integrations/mqtt/) on port **8883**. Prior to deploying the Moquette MQTT broker you must:
+By default, The Things Stack deploys an [MQTT Server](https://www.thethingsindustries.com/docs/integrations/mqtt/) on port **8883**. Prior to deploying the Greengrass MQTT broker you must:
 
 1. Remove the MQTT Server from The Things Stack configuration (and re-publish the configuration secret) OR
 2. Move the MQTT Server to a port other than **8883** in The Things Stack configuration (and re-publish the configuration secret) OR
-3. Decide to modify the Moquette MQTT broker component default configuration to run it on a port other than **8883**
+3. Decide to modify the Greengrass MQTT broker component default configuration to run it on a port other than **8883**
 
 Next, [update the Greengrass deployment to add the necessary components](https://docs.aws.amazon.com/greengrass/v2/developerguide/client-devices-tutorial.html) to your Greengrass core device:
 
-* [MQTT broker (Moquette)](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-broker-moquette-component.html)
+* [MQTT broker (EMQX)](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-broker-emqx-component.html) or [MQTT broker (Moquette)](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-broker-moquette-component.html)
 * [MQTT bridge](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-bridge-component.html)
 * [Client device auth](https://docs.aws.amazon.com/greengrass/v2/developerguide/client-device-auth-component.html)
 * [IP detector](https://docs.aws.amazon.com/greengrass/v2/developerguide/ip-detector-component.html)
 
-As with connecting to AWS IoT Core, a Thing should be created in AWS IoT Core and the device certificate and private key should be saved. However, instead of the Amazon Root CA certificate being used for authenticating AWS IoT Core, you instead need the CA generated by the component installations; this can be found at **/greengrass/v2/work/aws.greengrass.clientdevices.Auth/ca.pem** on your Greengrass device.
+You will then need to:
 
-Instead of connecting to the AWS IoT Core endpoint, the Pub/Sub integration shall connect to the local Moquette broker using its IP address (not **localhost**).
+1. Create a Thing representing The Things Stack, and obtain the device certificate and private key.
+2. [Associate](https://docs.aws.amazon.com/greengrass/v2/developerguide/associate-client-devices.html) this Thing with your Greengrass core device.
+3. [Configure the Client device auth component](https://docs.aws.amazon.com/greengrass/v2/developerguide/client-device-auth-component.html#client-device-auth-component-configuration) to define what The Things Stack is authorized to do.
+4. [Configure the MQTT Bridge component](https://docs.aws.amazon.com/greengrass/v2/developerguide/mqtt-bridge-component.html#mqtt-bridge-component-configuration) to define the desired message relaying.
 
-Add a Pub/Sub integration in your Application in The Things Stack with the following settings:
+You can then configure the Pub/Sub integration settings as described above for AWS IoT Core, but with the following adjustments:
 
-| Item                                      | Value                                                               |
-| ----------------------------------------- | ------------------------------------------------------------------- |
-| Provider                                  | MQTT                                                                |
-| MQTT Configuration: Use secure connection | Enabled                                                             |
-| MQTT Configuration: Root CA certificate   | ca.pem copied from your Greengrasss core device                     |
-| MQTT Configuration: Client certificate    | Device certificate saved when creating the Thing in AWS IoT Core    |
-| MQTT Configuration: Client private key    | Private key saved when creating the Thing in AWS IoT Core           |
-| MQTT Configuration: Server URL            | mqtts://xxx.xxx.xxx.xxx:8883 (assuming Moquette runs on 8883)             |
+1. The Server URL should be the IP address of the Greengrass core device.
+2. Use [your own certificate authority (CA)](https://docs.aws.amazon.com/greengrass/v2/developerguide/connecting-to-mqtt.html#use-your-own-CA), configure the [Client device auth](https://docs.aws.amazon.com/greengrass/v2/developerguide/client-device-auth-component.html) component to use it, and configure the Pub/Sub integration to use that as the CA certificate to validate the broker.
 
 # Operations
 
 ## Clean Uninstall
 
-Removing this component from your deployment will not remove all vestiges from your Greengrass core device. Additional steps:
-
-- Remove any Docker images that have persisted.
-- Remove the working directory: **/greengrass/v2/work/aws.greengrass.labs.TheThingsStackLoRaWAN**. This also deletes the databases.
+Removing this component from your deployment will not remove all vestiges from your Greengrass core device. You need to also remove the working directory: **/greengrass/v2/work/aws.greengrass.labs.TheThingsStackLoRaWAN**. This also deletes the databases.
 
 ## Data Backup
 
@@ -440,8 +416,8 @@ Consider to install the [Greengrass Command Line Interface component](https://do
 The logs within the Docker containers can be inspected as follows:
 
 ```
-docker logs awsgreengrasslabsthethingsstacklorawan_redis_1
-docker logs awsgreengrasslabsthethingsstacklorawan_postgres_1
+docker logs awsgreengrasslabsthethingsstacklorawan_redis-1
+docker logs awsgreengrasslabsthethingsstacklorawan_postgres-1
 docker logs awsgreengrasslabsthethingsstacklorawan_stack
 ```
 
@@ -461,43 +437,11 @@ In the case of The Things Stack container, this message will appear in **/greeng
 
 To resolve incorrect architecture, please check the available architectures for the image tag. Image tags on DockerHub do not always support all architectures. Update **docker-compose.yml** and update the configuration secret.
 
-### Redis Keeps Restarting
-
-This will prevent The Things Stack from starting correctly. Please check the Redis Docker container logs for the following error:
-
-```
-redis-server: monotonic.c:149: monotonicInit_posix: Assertion `rc == 0' failed.
-```
-
-[Redis 6.2 included a change that means it requires libseccomp 2.4.2 or newer](https://github.com/docker-library/redis/issues/272). On some systems, such as Raspbian, **libseccomp** may not meet this requirement. To check the version under Raspbian, Ubuntu or Debian:
-
-```
-dpkg -l | grep libseccomp
-```
-
-The issue can be resolved by using Redis 6.0 or by upgrading **libseccomp**. 
-
 ### Configuration Changes Not Deployed
 
 The Greengrass Secret Manager component fetches the configuration secret from the cloud when the component starts up. If you change the value of the secret, you need to deploy a new component version, restart Greengrass, or reboot the core device to refresh the value.
 
 The deployed configuration can be found at **/greengrass/v2/work/aws.greengrass.labs.TheThingsStackLoRaWAN/docker-compose.yml** and **/greengrass/v2/work/aws.greengrass.labs.TheThingsStackLoRaWAN/config/stack/ttn-lw-stack-docker.yml**.
-
-### Database Access Fails
-
-The following error may appear in **/greengrass/v2/logs/aws.greengrass.labs.TheThingsStackLoRaWAN.log** when The Things Stack starts up:
-
-```
-pq: could not open file "global/pg_filenode.map": Permission denied. 
-```
-
-Or alternatively:
-
-```
-pq: database "ttn_lorawan" does not exist
-```
-
-These messages should only appear when trying to recover from other errors. Ensure the latest configuration secret is deployed by restarting the core device. Should the problem persist, consider a [Clean Uninstall](#clean-uninstall).
 
 # Development
 
