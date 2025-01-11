@@ -66,7 +66,7 @@ An overview of the system architecture is presented below.
 
 ![ggv2-tts-architecture](images/ggv2-tts-architecture.png)
 
-The **aws.greengrass.labs.TheThingsStackLoRaWAN** component is a thin wrapper around a conventional The Things Stack deployment. The Things Stack is composed of multiple Docker containers, using Docker Compose. Subject to configuration, there may be a Redis container and either a PostreSQL or CockroachDB container, in addition to The Things Stack container.
+The **aws.greengrass.labs.TheThingsStackLoRaWAN** component is a thin wrapper around a conventional The Things Stack deployment. The Things Stack is composed of multiple Docker containers, using Docker Compose. Subject to configuration, there may be a Redis container and a PostreSQL container, in addition to The Things Stack container.
 
 The Things Stack is delivered as Docker images on Docker Hub. This component downloads Docker images from Docker Hub with the help of the [Docker application manager](https://docs.aws.amazon.com/greengrass/v2/developerguide/docker-application-manager-component.html) managed component.
 
@@ -320,7 +320,6 @@ Things Stack Enterprise example configuration files, with the following divergen
 - All Enterprise configuration elements are commented out so that it defaults to Open Source edition.
 - Acme Let's Encrypt TLS certificates are disabled and custom TLS certificates are enabled. This allows deployment to a server that only has an IP address, a local network DNS name or an EC2 default domain name.
 - All non-TLS ports and endpoints are disabled.
-- Postgres is selected as the database, instead of Cockroach, so that this component can be easily deployed to many different architectures. Cockroach only supports **amd64** architecture.
 - Versioned image tags are used instead of just **latest** tags. These versioned tags are the most recently tested combination. The **latest** tags do not always support as many architectures as formal releases do.
 
 These default settings likely facilitate minimal effort in deploying this component to your Greengrass core device.
@@ -340,8 +339,6 @@ As compared to Open Source, an Enterprise license adds:
 Per The Things Stack recommendations, production deployments should reference specific Docker image tags (not just **latest**) and consideration should also be given to using external managed instances of the databases.
 
 ## Image Architecture
-
-CockroachDB is not available for Arm architecture. You must use PostgreSQL instead.
 
 The Things Stack images tagged **latest** on Docker Hub are not available for all architectures. Only formal releases are.
 
@@ -445,7 +442,6 @@ The logs within the Docker containers can be inspected as follows:
 ```
 docker logs awsgreengrasslabsthethingsstacklorawan_redis_1
 docker logs awsgreengrasslabsthethingsstacklorawan_postgres_1
-docker logs awsgreengrasslabsthethingsstacklorawan_cockroach_1
 docker logs awsgreengrasslabsthethingsstacklorawan_stack
 ```
 
@@ -461,13 +457,7 @@ If a Docker image of the wrong architecture is deployed, it will fail to start. 
 standard_init_linux.go:228: exec user process caused: exec format error
 ```
 
-In the case of The Things Stack container, this message will appear in **/greengrass/v2/logs/aws.greengrass.labs.TheThingsStackLoRaWAN.log**. For the database containers, this message will appear in the Docker container logs. Other consequential errors will appear in **/greengrass/v2/logs/aws.greengrass.labs.TheThingsStackLoRaWAN.log**. For example, if Cockroach (which only supports **amd64** architecture) is deployed to an Arm system, errors similar to the following will be observed:
-
-```
-aws.greengrass.labs.TheThingsStackLoRaWAN: stdout. ERROR: for awsgreengrasslabsthethingsstacklorawan_cockroach_1  Cannot start service cockroach
-aws.greengrass.labs.TheThingsStackLoRaWAN: stdout. ERROR: for cockroach  Cannot start service cockroach
-aws.greengrass.labs.TheThingsStackLoRaWAN: stdout. dial tcp 172.21.0.4:26257: connect: no route to host
-```
+In the case of The Things Stack container, this message will appear in **/greengrass/v2/logs/aws.greengrass.labs.TheThingsStackLoRaWAN.log**. For the database containers, this message will appear in the Docker container logs. Other consequential errors will appear in **/greengrass/v2/logs/aws.greengrass.labs.TheThingsStackLoRaWAN.log**.
 
 To resolve incorrect architecture, please check the available architectures for the image tag. Image tags on DockerHub do not always support all architectures. Update **docker-compose.yml** and update the configuration secret.
 

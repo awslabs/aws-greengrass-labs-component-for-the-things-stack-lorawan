@@ -12,12 +12,31 @@ import pytest
 
 ADMIN_PASS = 'foobar'
 ADMIN_EMAIL = 'user@blah.com'
+SERVER = 'https://foobar'
 CONSOLE_OAUTH_SECRET = 'consolesecret'
+NOC_OAUTH_SECRET = 'nocsecret'
 DCS_OAUTH_SECRET = 'dcssecret'
 DOCKER_COMPOSE_ENTERPRISE = '\nservices:\n  stack:\n    image: thethingsindustries/lorawan-stack:latest\n'
 DOCKER_COMPOSE_OPEN_SOURCE = '\nservices:\n  stack:\n    image: thethingsnetwork/lorawan-stack:latest\n'
-STACK_CONFIG_SINGLE = '\nconsole:\n  oauth:\n    client-secret: ' + CONSOLE_OAUTH_SECRET +\
-                      '\ndcs:\n  oauth:\n    client-secret: ' + DCS_OAUTH_SECRET + '\n'
+STACK_CONFIG_SINGLE =\
+f"""
+console:
+  ui:
+    canonical-url: {SERVER}/console
+  oauth:
+    client-secret: {CONSOLE_OAUTH_SECRET}
+noc:
+  ui:
+    canonical-url: {SERVER}/noc
+  oauth:
+    client-secret: {NOC_OAUTH_SECRET}
+dcs:
+  ui:
+    canonical-url: {SERVER}/claim
+  oauth:
+    client-secret: {DCS_OAUTH_SECRET}
+"""
+
 
 def secret_json():
     """ Create secret as a JSON dictionary """
@@ -28,7 +47,7 @@ def secret_json():
 
 def check_output_assert(mock_check_output, extra_args, should_be_called=True):
     """ Confirm whether command correctly issued or not """
-    args = ['docker-compose', 'run', '--rm', 'stack']
+    args = ['docker', 'compose', 'run', '--rm', 'stack']
     args.extend(extra_args)
 
     try:
@@ -56,7 +75,7 @@ def check_install(mocker, enterprise=True):
     file.assert_any_call('docker-compose.yml', encoding="utf-8")
     file.assert_any_call('./config/stack/ttn-lw-stack-docker.yml', encoding="utf-8")
 
-    check_output_assert(subprocess_check_output, ['is-db', 'init'])
+    check_output_assert(subprocess_check_output, ['is-db', 'migrate'])
     check_output_assert(subprocess_check_output, ['is-db', 'create-admin-user', '--id', 'admin',
                                                   '--password', ADMIN_PASS, '--email', ADMIN_EMAIL])
     check_output_assert(subprocess_check_output, ['is-db', 'create-oauth-client', '--id', 'cli',
@@ -66,16 +85,29 @@ def check_install(mocker, enterprise=True):
     check_output_assert(subprocess_check_output, ['is-db', 'create-oauth-client', '--id', 'console',
                                                   '--name', 'Console', '--owner', 'admin',
                                                   '--secret', CONSOLE_OAUTH_SECRET, '--redirect-uri',
-                                                  '/console/oauth/callback',
+                                                  f'{SERVER}/console/oauth/callback', '--redirect-uri',
+                                                  '/console/oauth/callback', '--logout-redirect-uri',
+                                                  f'{SERVER}/console',
                                                   '--logout-redirect-uri', '/console'])
 
     # Installation steps that should only occur for Enterprise
     check_output_assert(subprocess_check_output, ['storage-db', 'init'], should_be_called=enterprise)
+    check_output_assert(subprocess_check_output, ['noc-db', 'init'], should_be_called=enterprise)
     check_output_assert(subprocess_check_output, ['is-db', 'create-tenant'], should_be_called=enterprise)
+    check_output_assert(subprocess_check_output, ['is-db', 'create-oauth-client', '--id', 'noc',
+                                                  '--name', 'Network Operations Center', '--owner', 'admin',
+                                                  '--secret', NOC_OAUTH_SECRET, '--redirect-uri',
+                                                  f'{SERVER}/noc/oauth/callback', '--redirect-uri',
+                                                  '/noc/oauth/callback', '--logout-redirect-uri',
+                                                  f'{SERVER}/noc',
+                                                  '--logout-redirect-uri', '/noc'],
+                                                  should_be_called=enterprise)
     check_output_assert(subprocess_check_output, ['is-db', 'create-oauth-client', '--id', 'device-claiming',
                                                   '--name', 'Device Claiming Server', '--owner', 'admin',
                                                   '--secret', DCS_OAUTH_SECRET, '--redirect-uri',
-                                                  '/claim/oauth/callback',
+                                                  f'{SERVER}/claim/oauth/callback', '--redirect-uri',
+                                                  '/claim/oauth/callback', '--logout-redirect-uri',
+                                                  f'{SERVER}/claim',
                                                   '--logout-redirect-uri', '/claim'],
                                                   should_be_called=enterprise)
 
@@ -99,7 +131,7 @@ def check_output_exception(mocker, mock_exception):
     os_makedirs.assert_any_call('config/stack', exist_ok=True)
     file.assert_any_call('docker-compose.yml', encoding="utf-8")
     file.assert_any_call('./config/stack/ttn-lw-stack-docker.yml', encoding="utf-8")
-    check_output_assert(subprocess_check_output, ['is-db', 'init'])
+    check_output_assert(subprocess_check_output, ['is-db', 'migrate'])
 
 def test_stack_enterprise(mocker):
     """ Confirm that an enterprise deployment installs correctly """

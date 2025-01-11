@@ -20,9 +20,7 @@ FILE_ZIP_BASE = 'tts'
 FILE_ZIP_EXT = 'zip'
 
 SECRET_ARN = 'rhubarb'
-NAME_COCKROACH = 'cockroach'
 NAME_POSTGRES = 'postgres'
-IMAGE_COCKROACH = 'cockroachdb/cockroach:latest'
 IMAGE_POSTGRES = 'postgres:latest'
 IMAGE_REDIS = 'redis:latest'
 IMAGE_STACK = 'thethingsnetwork/lorawan-stack:latest'
@@ -116,17 +114,9 @@ def check_gdk_build(mocker, db_name, db_image, redis_image=IMAGE_REDIS, version=
     secret_class.assert_called_once()
     secret.get.assert_called_once()
 
-def test_cockroach_and_redis(mocker):
-    """ Recipe assembled with Coackroach and Redis both included """
-    check_gdk_build(mocker, NAME_COCKROACH, IMAGE_COCKROACH)
-
 def test_postgres_and_redis(mocker):
     """ Recipe assembled with Postgres and Redis both included """
     check_gdk_build(mocker, NAME_POSTGRES, IMAGE_POSTGRES)
-
-def test_cockroach_only(mocker):
-    """ Recipe assembled with Coackroach but Redis omitted """
-    check_gdk_build(mocker, NAME_COCKROACH, IMAGE_COCKROACH, redis_image=OMIT)
 
 def test_postgres_only(mocker):
     """ Recipe assembled with Postgres but Redis omitted """
@@ -142,4 +132,4 @@ def test_all_omitted(mocker):
 
 def test_next_patch(mocker):
     """ Recipe assembled with NEXT_PATCH version """
-    check_gdk_build(mocker, NAME_POSTGRES, IMAGE_COCKROACH, version='NEXT_PATCH')
+    check_gdk_build(mocker, NAME_POSTGRES, IMAGE_POSTGRES, version='NEXT_PATCH')

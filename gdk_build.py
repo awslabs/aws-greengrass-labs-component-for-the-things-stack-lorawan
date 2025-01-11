@@ -51,12 +51,10 @@ def create_recipe():
     recipe_str = recipe_str.replace('$SECRET_ARN', secret_value['ARN'])
     recipe_str = recipe_str.replace('$DOCKER_IMAGE_TTS', docker_compose_yaml['services']['stack']['image'])
 
-    if 'cockroach' in docker_compose_yaml['services']:
-        recipe_str = recipe_str.replace('$DOCKER_IMAGE_DB', docker_compose_yaml['services']['cockroach']['image'])
-    elif 'postgres' in docker_compose_yaml['services']:
+    if 'postgres' in docker_compose_yaml['services']:
         recipe_str = recipe_str.replace('$DOCKER_IMAGE_DB', docker_compose_yaml['services']['postgres']['image'])
     else:
-        print(f'Neither CockroachDB nor PostgreSQL is included in {FILE_DOCKER_COMPOSE}')
+        print(f'PostgreSQL is not included in {FILE_DOCKER_COMPOSE}')
 
     if 'redis' in docker_compose_yaml['services']:
         recipe_str = recipe_str.replace('$DOCKER_IMAGE_REDIS', docker_compose_yaml['services']['redis']['image'])

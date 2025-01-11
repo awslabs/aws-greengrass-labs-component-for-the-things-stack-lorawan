@@ -45,13 +45,13 @@ Manifests:
         . venv/bin/activate
         echo Running the component
         python3 -u share_certs.py
-        docker-compose up -d stack
+        docker compose up -d stack
     Shutdown:
       RequiresPrivilege: true
-      Script: docker-compose down
+      Script: docker compose down
     Recover:
       RequiresPrivilege: true
-      Script: docker-compose down
+      Script: docker compose down
   Artifacts:
   - Uri: docker:$DOCKER_IMAGE_TTS
   - Uri: docker:$DOCKER_IMAGE_DB
