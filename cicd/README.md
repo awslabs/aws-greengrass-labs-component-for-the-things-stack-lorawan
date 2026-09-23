@@ -14,7 +14,7 @@ The CI/CD pipeline for the AWS Greengrass The Things Stack LoRaWAN component is 
 
 # Architecture
 
-The pipeline consists of three stages: build, deploy and test. The build stage creates a new component version, the deploy stage deploys that version to the Greengrass Edge runtime and the test stage performs system-level smoke tests to ensure that The Things Stack has started up correctly. 
+The pipeline consists of two stages: build and deploy. The build stage creates a new component version and the deploy stage deploys that version to the Greengrass Edge runtime. 
 
 ![cicd-pipeline-architecture](images/cicd-pipeline-architecture.png)
 

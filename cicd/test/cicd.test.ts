@@ -22,12 +22,11 @@ test('Good Stack', () => {
     const template = Template.fromStack(stack)
 
     template.hasResourceProperties('AWS::CodePipeline::Pipeline', { Name: `${STACK_NAME}` });
-    template.resourceCountIs('AWS::CodeBuild::Project', 3);
+    template.resourceCountIs('AWS::CodeBuild::Project', 2);
     template.hasResourceProperties('AWS::CodeBuild::Project', { Name: `${STACK_NAME}Build` });
     template.hasResourceProperties('AWS::CodeBuild::Project', { Name: `${STACK_NAME}Deploy` });
-    template.hasResourceProperties('AWS::CodeBuild::Project', { Name: `${STACK_NAME}Test` });
     template.resourceCountIs('AWS::S3::Bucket', 1);
-    template.resourceCountIs('AWS::CodeBuild::ReportGroup', 2);
+    template.resourceCountIs('AWS::CodeBuild::ReportGroup', 1);
     template.hasResourceProperties('AWS::SNS::Topic', { TopicName: `${STACK_NAME}Notification` });
     template.resourceCountIs('AWS::Events::Rule', 1);
 });

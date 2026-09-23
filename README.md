@@ -34,7 +34,6 @@ The Pub/Sub integration can also be used to publish and subscribe to topics on t
     * [Manual Deployment](#manual-deployment)
     * [Example Execution](#example-execution)
     * [CI/CD Pipeline](#cicd-pipeline)
-    * [Automated Testing](#automated-testing)
 * [The Things Stack Configuration Tips](#the-things-stack-configuration-tips)
   * [Defaults](#defaults)
   * [Enterprise versus Open Source](#enterprise-versus-open-source)
@@ -82,7 +81,6 @@ As shown in **blue**, The Things Stack can use its [Pub/Sub integration](https:/
 | /cicd                         | CDK Typescript app for a CodePipeline CI/CD pipeline.                                                 |
 | /images                       | Images for README files.                                                                              |
 | /libs                         | Python libraries shared by Python scripts.                                                            |
-| /robot                        | Robot Framework integration tests.                                                                    |
 | /tests                        | Pytest unit tests.
 | /tts-config                   | The Things Stack configuration files.                                                                 |
 | create_certs.sh               | Creates self-signed TLS certificates for a given domain name or IP address.                           |
@@ -183,7 +181,6 @@ Package dependencies can be resolved as follows:
 
 ```
 pip3 install -r requirements.txt
-pip3 install -r robot/requirements.txt
 ```
 
 Please consider to use a [virtual environment](https://docs.python.org/3/library/venv.html).
@@ -233,7 +230,6 @@ The Quickstart script will:
 6. Use GDK to publish a new component version to Greengrass cloud services and upload artifacts to an S3 bucket.
 7. Prompt you to add permissions for the configuration secret and artifacts bucket to the Greengrass core device role. 
 8. Deploy the new component version to the Greengrass core (creating The Things Stack admin user in the process).
-9. Run Robot Framework integration tests to confirm The Things Stack is running under Greengrass.
 
 The script accepts 4 arguments:
 
@@ -265,7 +261,7 @@ If not using Quickstart, you must perform the following steps:
 8. Run **gdk component build** to build the component.
 9. Run **gdk component publish** to create a component version in Greengrass cloud service, and upload artifacts to S3.
 10. Add permissions for the configuration secret and artifacts bucket to the Greengrass core device role. 
-11. he component can then be deployed using [the console or using the AWS CLI](https://docs.aws.amazon.com/greengrass/v2/developerguide/create-deployments.html) in the normal way. Alternatively it can be deployed using the supplied **deploy_component_version.py** script.
+11. The component can then be deployed using [the console or using the AWS CLI](https://docs.aws.amazon.com/greengrass/v2/developerguide/create-deployments.html) in the normal way. Alternatively it can be deployed using the supplied **deploy_component_version.py** script.
 
 For iterative configuration changes, repeat steps 2 and 7. For iterative component changes, repeat steps 8, 9 and 11.
 
@@ -292,11 +288,7 @@ This example:
 
 This repository offers a CodePipeline [CI/CD pipeline](cicd/README.md) as a CDK application. This can be optionally deployed to the same account as the Greengrass core.
 
-This CI/CD pipeline automates steps 8, 9 and 11. Following deployment, it performs automated smoke tests to ensure that The Things Stack has started correctly. 
-
-### Automated Testing
-
-This repository includes an [automated test suite](robot/README.md) built on top of [Robot Framework](https://robotframework.org/). This can be run on demand from the command-line but it is also included as part of the CI/CD pipeline.
+This CI/CD pipeline automates steps 8, 9 and 11.
 
 # The Things Stack Configuration Tips
 
