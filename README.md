@@ -274,7 +274,7 @@ Example of steps 7, 8, 9 and 11:
 python3 create_config_secret.py mypassword user@example.com
 gdk component build
 gdk component publish
-python3 deploy_component_version.py 1.0.0 MyCoreDeviceThingName
+python3 deploy_component_version.py 1.2.0 MyCoreDeviceThingName
 ```
 
 This example:
