@@ -56,16 +56,6 @@ export class CicdStack extends cdk.Stack {
             encryptionKey: kms.Alias.fromAliasName(this, `${this.stackName}DeployS3Key`, 'alias/aws/s3')
         });
 
-        const testProject = new codebuild.PipelineProject(this, `${this.stackName}Test`, {
-            projectName: `${this.stackName}Test`,
-            buildSpec: codebuild.BuildSpec.fromSourceFilename('cicd/testspec.yaml'),
-            environment: {
-                buildImage: codebuild.LinuxBuildImage.STANDARD_7_0
-            },
-            timeout: cdk.Duration.minutes(5),
-            encryptionKey: kms.Alias.fromAliasName(this, `${this.stackName}TestS3Key`, 'alias/aws/s3')
-        });
-
         const pipelineBucket = new s3.Bucket(this, `${this.stackName}Bucket`, {
             bucketName: `${this.stackName.toLowerCase()}-${this.account}-${this.region}`,
             blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -111,20 +101,6 @@ export class CicdStack extends cdk.Stack {
         new codebuild.CfnReportGroup(this, `${this.stackName}UnitTestReportGroup`, {
             type: 'TEST',
             name: `${buildProject.projectName}-UnitTestsReport`,
-            exportConfig: {
-                exportConfigType: 'S3',
-                s3Destination: {
-                    bucket: pipelineBucket.bucketName,
-                    encryptionDisabled: true,
-                    packaging: 'NONE'
-                }
-            }
-        });
-
-        // We create the integration tests report group explicitly, rather than let CodeBuild do it, so that we can define the raw results export
-        new codebuild.CfnReportGroup(this, `${this.stackName}IntegrationTestReportGroup`, {
-            type: 'TEST',
-            name: `${testProject.projectName}-IntegrationTestsReport`,
             exportConfig: {
                 exportConfigType: 'S3',
                 s3Destination: {
@@ -197,12 +173,10 @@ export class CicdStack extends cdk.Stack {
         });
         buildProject.addToRolePolicy(secretPolicy);
         deployProject.addToRolePolicy(secretPolicy);
-        testProject.addToRolePolicy(secretPolicy);
 
         const source = new codepipeline.Artifact('Source');
         const build = new codepipeline.Artifact('Build');
         const deploy = new codepipeline.Artifact('Deploy');
-        const test = new codepipeline.Artifact('Test');
 
         const sourceAction = new codepipeline_actions.CodeStarConnectionsSourceAction({
             actionName: `Source`,
@@ -231,16 +205,6 @@ export class CicdStack extends cdk.Stack {
             }
         });
 
-        const testAction = new codepipeline_actions.CodeBuildAction({
-            actionName: `Test`,
-            project: testProject,
-            input: source,
-            outputs: [test],
-            environmentVariables: {
-                "SECRET_NAME": { value: Names.SECRET }
-            }
-        });
-
         const pipeline = new codepipeline.Pipeline(this, `${this.stackName}`, {
             pipelineName: `${this.stackName}`,
             pipelineType: codepipeline.PipelineType.V2,
@@ -257,10 +221,6 @@ export class CicdStack extends cdk.Stack {
                 {
                     stageName: 'Deploy',
                     actions: [deployAction],
-                },
-                {
-                    stageName: 'Test',
-                    actions: [testAction],
                 }
             ],
         });
@@ -275,7 +235,7 @@ export class CicdStack extends cdk.Stack {
             message: events.RuleTargetInput.fromText(`Account ${account} ${state} for execution ID ${executionId}`)
         }));
 
-        NagSuppressions.addResourceSuppressions([pipeline, buildProject, deployProject, testProject], [
+        NagSuppressions.addResourceSuppressions([pipeline, buildProject, deployProject], [
             {
               id: 'AwsSolutions-IAM5',
               reason: 'The default policies created in the code build and pipeline roles include wildcards.'

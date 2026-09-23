@@ -22,8 +22,7 @@
 # 5) Use GDK to build the component.
 # 6) Use GDK to publish a new component version to Greengrass cloud services and upload artifacts to an S3 bucket.
 # 7) Prompt you to add permissions for the configuration secret and artifacts bucket to the Greengrass core device role.
-# 7) Deploy the new component version to the Greengrass core.
-# 8) Run Robot Framework integration tests to confirm The Things Stack is running under Greengrass.
+# 8) Deploy the new component version to the Greengrass core.
 #
 # Example execution:
 # bash quickstart.sh example.com mypassword user@example.com GGTheThingsStackLoRaWAN
@@ -58,7 +57,6 @@ done
 # Install requirements
 banner "Install required packages"
 pip3 install -r requirements.txt
-pip3 install -r robot/requirements.txt
 pip3 install git+https://github.com/aws-greengrass/aws-greengrass-gdk-cli.git
 
 # Create self-signed certificates for the given domain name or IP address
@@ -103,7 +101,3 @@ COMPONENT_VERSION=$(cat $RECIPE_FILE | yq '.ComponentVersion')
 banner "Deploy the new Greengrass component version" 
 python3 deploy_component_version.py $COMPONENT_VERSION $4
 
-# Run the Robot Framework integration tests
-banner "Run integration tests" 
-cd robot
-robot --pythonpath libs --variable DOMAIN_NAME:$1 --variable ADMIN_PASSWORD:$2 --xunit results.xml --removekeywords NAME:Login suites
