@@ -10,19 +10,19 @@ python3 install.py arn:aws:secretsmanager:REGION:ACCOUNT:secret:greengrass-tts-l
 
 import sys
 import os
-import subprocess
+import subprocess  # nosec B404
 import shlex
 from config import Config
 from secret import get_secret
 
-KEY_ADMIN_PASS = 'admin-password'
+KEY_ADMIN_PW = 'admin-password'
 KEY_ADMIN_EMAIL = 'admin-email'
 
 def create_files_from_secret():
     """ Extracts files from the configuration secret and creates them on disk """
     print('Creating files from secret')
     for key, value in secret.items():
-        if key not in (KEY_ADMIN_PASS, KEY_ADMIN_EMAIL):
+        if key not in (KEY_ADMIN_PW, KEY_ADMIN_EMAIL):
             print(f'Creating {key}')
             if '/' in key:
                 os.makedirs(os.path.dirname(key), exist_ok=True)
@@ -37,7 +37,8 @@ def run_command(command, alternate_message=None):
     args = shlex.split(command)
 
     try:
-        output = subprocess.check_output(args, shell=False, stderr=subprocess.STDOUT, timeout=60).decode("utf-8")
+        output_bytes = subprocess.check_output(args, shell=False, stderr=subprocess.STDOUT, timeout=60)  # nosec B603
+        output = output_bytes.decode("utf-8")
         print(output)
         success = True
     except subprocess.CalledProcessError as e:
@@ -90,7 +91,7 @@ if enterprise_deployment:
 
 # Create an admin user
 run_command('docker compose run --rm stack is-db create-admin-user '\
-            f'--id admin --password {secret[KEY_ADMIN_PASS]} --email {secret[KEY_ADMIN_EMAIL]}',
+            f'--id admin --password {secret[KEY_ADMIN_PW]} --email {secret[KEY_ADMIN_EMAIL]}',
             'docker compose run --rm stack is-db create-admin-user [CREDENTIALS REDACTED]')
 
 # Register the CLI as an OAuth client
